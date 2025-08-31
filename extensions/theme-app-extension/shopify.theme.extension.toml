@@ -1,8 +1,0 @@
-name = "PRNTONDEMAND Theme Extension"
-type = "theme-app-extension"
-
-[settings]
-default = "default"
-
-[[settings.options]]
-name = "default"

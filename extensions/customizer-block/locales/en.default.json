@@ -1,0 +1,11 @@
+{
+  "customizer_block": {
+    "title": "Product Customizer",
+    "description": "Customize your product with text, images, and colors",
+    "upload_image": "Upload Image",
+    "add_text": "Add Text",
+    "customize_now": "Customize Now",
+    "save_design": "Save Design",
+    "reset_design": "Reset Design"
+  }
+}

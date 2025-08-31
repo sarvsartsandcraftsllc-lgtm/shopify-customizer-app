@@ -1,9 +1,8 @@
 name = "Customizer Block"
-type = "theme-app-extension"
+type = "theme"
 
 [settings]
 default = "default"
 
 [[settings.options]]
 name = "default"
-
