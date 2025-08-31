@@ -4,11 +4,6 @@
   "framework": "remix",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "functions": {
-    "app/routes/**/*.tsx": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
