@@ -1,0 +1,342 @@
+{% comment %}
+  PRNTONDEMAND Product Customizer Block
+  This block allows customers to customize print-on-demand products
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "Product Customizer",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Customizer Title",
+      "default": "Customize Your Product"
+    },
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Description",
+      "default": "Personalize your product with our easy-to-use customizer"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_color_picker",
+      "label": "Show Color Picker",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_text_input",
+      "label": "Show Text Input",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_image_upload",
+      "label": "Show Image Upload",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
+
+<div class="prntondemand-customizer" data-product-id="{{ product.id }}">
+  <div class="customizer-header">
+    <h3>{{ block.settings.title }}</h3>
+    <p>{{ block.settings.description }}</p>
+  </div>
+
+  <div class="customizer-content">
+    {% if block.settings.show_color_picker %}
+      <div class="customizer-section">
+        <label for="product-color">Product Color:</label>
+        <select id="product-color" class="customizer-select">
+          <option value="white">White</option>
+          <option value="black">Black</option>
+          <option value="navy">Navy</option>
+          <option value="red">Red</option>
+          <option value="green">Green</option>
+          <option value="yellow">Yellow</option>
+        </select>
+      </div>
+    {% endif %}
+
+    {% if block.settings.show_text_input %}
+      <div class="customizer-section">
+        <label for="custom-text">Custom Text:</label>
+        <input type="text" id="custom-text" class="customizer-input" placeholder="Enter your custom text here..." maxlength="50">
+        <small>Maximum 50 characters</small>
+      </div>
+    {% endif %}
+
+    {% if block.settings.show_image_upload %}
+      <div class="customizer-section">
+        <label for="custom-image">Custom Image:</label>
+        <input type="file" id="custom-image" class="customizer-file" accept="image/*">
+        <small>Upload JPG, PNG, or GIF (max 5MB)</small>
+      </div>
+    {% endif %}
+
+    <div class="customizer-preview">
+      <h4>Preview</h4>
+      <div id="preview-container" class="preview-container">
+        <div class="preview-placeholder">
+          <p>Your customization will appear here</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="customizer-actions">
+      <button type="button" class="btn btn-secondary" id="reset-customization">
+        Reset
+      </button>
+      <button type="button" class="btn btn-primary" id="apply-customization">
+        Apply Customization
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .prntondemand-customizer {
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin: 20px 0;
+    background: #f9f9f9;
+  }
+
+  .customizer-header {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .customizer-header h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+  }
+
+  .customizer-header p {
+    margin: 0;
+    color: #666;
+  }
+
+  .customizer-section {
+    margin-bottom: 20px;
+  }
+
+  .customizer-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .customizer-input,
+  .customizer-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  .customizer-file {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  .customizer-section small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+  }
+
+  .customizer-preview {
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+
+  .customizer-preview h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+  }
+
+  .preview-container {
+    min-height: 100px;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .preview-placeholder {
+    text-align: center;
+    color: #999;
+  }
+
+  .customizer-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background: #008060;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #006b52;
+  }
+
+  .btn-secondary {
+    background: #6d7175;
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background: #5a5d61;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const customizer = document.querySelector('.prntondemand-customizer');
+    if (!customizer) return;
+
+    const colorSelect = customizer.querySelector('#product-color');
+    const textInput = customizer.querySelector('#custom-text');
+    const imageInput = customizer.querySelector('#custom-image');
+    const previewContainer = customizer.querySelector('#preview-container');
+    const resetBtn = customizer.querySelector('#reset-customization');
+    const applyBtn = customizer.querySelector('#apply-customization');
+
+    let customizations = {
+      color: 'white',
+      text: '',
+      image: null
+    };
+
+    // Update preview when inputs change
+    function updatePreview() {
+      previewContainer.innerHTML = '';
+      
+      if (customizations.text || customizations.image) {
+        const preview = document.createElement('div');
+        preview.className = 'preview-content';
+        
+        if (customizations.text) {
+          const textPreview = document.createElement('div');
+          textPreview.className = 'text-preview';
+          textPreview.style.color = customizations.color === 'white' ? '#333' : '#fff';
+          textPreview.style.backgroundColor = customizations.color;
+          textPreview.style.padding = '10px';
+          textPreview.style.borderRadius = '4px';
+          textPreview.style.marginBottom = '10px';
+          textPreview.textContent = customizations.text;
+          preview.appendChild(textPreview);
+        }
+        
+        if (customizations.image) {
+          const imagePreview = document.createElement('img');
+          imagePreview.src = customizations.image;
+          imagePreview.style.maxWidth = '100%';
+          imagePreview.style.height = 'auto';
+          imagePreview.style.borderRadius = '4px';
+          preview.appendChild(imagePreview);
+        }
+        
+        previewContainer.appendChild(preview);
+      } else {
+        previewContainer.innerHTML = '<div class="preview-placeholder"><p>Your customization will appear here</p></div>';
+      }
+    }
+
+    // Event listeners
+    if (colorSelect) {
+      colorSelect.addEventListener('change', function(e) {
+        customizations.color = e.target.value;
+        updatePreview();
+      });
+    }
+
+    if (textInput) {
+      textInput.addEventListener('input', function(e) {
+        customizations.text = e.target.value;
+        updatePreview();
+      });
+    }
+
+    if (imageInput) {
+      imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            customizations.image = e.target.result;
+            updatePreview();
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function() {
+        customizations = {
+          color: 'white',
+          text: '',
+          image: null
+        };
+        
+        if (colorSelect) colorSelect.value = 'white';
+        if (textInput) textInput.value = '';
+        if (imageInput) imageInput.value = '';
+        
+        updatePreview();
+      });
+    }
+
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function() {
+        // Send customizations to the app
+        const productId = customizer.dataset.productId;
+        
+        // Store customizations in localStorage for now
+        // In production, this would send to your app's API
+        localStorage.setItem(`customization_${productId}`, JSON.stringify(customizations));
+        
+        // Show success message
+        alert('Customization applied successfully!');
+        
+        // You can also trigger a custom event for other parts of the page
+        window.dispatchEvent(new CustomEvent('customizationApplied', {
+          detail: { productId, customizations }
+        }));
+      });
+    }
+
+    // Initialize preview
+    updatePreview();
+  });
+</script>
+
