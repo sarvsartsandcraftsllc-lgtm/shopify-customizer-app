@@ -1,40 +1,25 @@
-import { useEffect, useState } from 'react';
-import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
-import { useFetcher, useLoaderData } from '@remix-run/react';
-import {
+import { 
   Page,
   Layout,
-  Text,
   Card,
-  Button,
-  BlockStack,
-  Box,
-  List,
-  Link,
-  InlineStack,
-  Badge,
-  DataTable,
-  EmptyState,
-  Icon,
   Tabs,
-  LegacyStack,
-  Thumbnail,
-  ButtonGroup,
+  Button,
   Modal,
   TextField,
-  Select,
+  BlockStack,
+  InlineStack,
+  Text,
+  Badge,
+  DataTable,
+  ButtonGroup,
   Banner,
+  Spinner,
 } from '@shopify/polaris';
 import { TitleBar, useAppBridge } from '@shopify/app-bridge-react';
 import { authenticate } from '../shopify.server';
-import { 
-  PrintMajor, 
-  ProductsMajor, 
-  OrdersMajor, 
-  CustomersMajor,
-  AnalyticsMajor,
-  SettingsMajor 
-} from '@shopify/polaris-icons';
+import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
+import { useLoaderData, useFetcher } from '@remix-run/react';
+import { useState } from 'react';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -132,32 +117,26 @@ export default function Index() {
     {
       id: 'dashboard',
       content: 'Dashboard',
-      icon: AnalyticsMajor,
     },
     {
       id: 'products',
       content: 'Products',
-      icon: ProductsMajor,
     },
     {
       id: 'orders',
       content: 'Orders',
-      icon: OrdersMajor,
     },
     {
       id: 'print-jobs',
       content: 'Print Jobs',
-      icon: PrintMajor,
     },
     {
       id: 'customers',
       content: 'Customers',
-      icon: CustomersMajor,
     },
     {
       id: 'settings',
       content: 'Settings',
-      icon: SettingsMajor,
     },
   ];
 
