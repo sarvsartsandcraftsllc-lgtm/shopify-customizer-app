@@ -4,12 +4,48 @@ import {
   AppDistribution,
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
-import { MemorySessionStorage } from "@shopify/shopify-app-remix/server";
-// import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-// import getPrismaClient from "./db.server";
+// import { MemorySessionStorage } from "@shopify/shopify-app-remix/server";
+import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
+import getPrismaClient from "./db.server";
 
-// Simplified initialization function to avoid Prisma during build
+// Lazy initialization function to prevent Prisma from being initialized during build
 function createShopifyApp() {
+  // Create a lazy session storage that only initializes Prisma when actually used
+  let prismaSessionStorage: PrismaSessionStorage | null = null;
+  
+  const lazySessionStorage = {
+    storeSession: async (session: any) => {
+      if (!prismaSessionStorage) {
+        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+      }
+      return prismaSessionStorage.storeSession(session);
+    },
+    loadSession: async (id: string) => {
+      if (!prismaSessionStorage) {
+        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+      }
+      return prismaSessionStorage.loadSession(id);
+    },
+    deleteSession: async (id: string) => {
+      if (!prismaSessionStorage) {
+        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+      }
+      return prismaSessionStorage.deleteSession(id);
+    },
+    deleteSessions: async (ids: string[]) => {
+      if (!prismaSessionStorage) {
+        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+      }
+      return prismaSessionStorage.deleteSessions(ids);
+    },
+    findSessionsByShop: async (shop: string) => {
+      if (!prismaSessionStorage) {
+        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+      }
+      return prismaSessionStorage.findSessionsByShop(shop);
+    }
+  };
+  
   return shopifyApp({
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
@@ -17,7 +53,7 @@ function createShopifyApp() {
     scopes: process.env.SCOPES?.split(","),
     appUrl: process.env.SHOPIFY_APP_URL || "",
     authPathPrefix: "/auth",
-    sessionStorage: new MemorySessionStorage(),
+    sessionStorage: lazySessionStorage,
     distribution: AppDistribution.AppStore,
     future: {
       unstable_newEmbeddedAuthStrategy: true,
