@@ -33,6 +33,6 @@ export default function App() {
 export const headers: HeadersFunction = () => {
   return {
     "Content-Security-Policy": "frame-ancestors https://admin.shopify.com https://*.myshopify.com;",
-    "X-Frame-Options": "",
+    "X-Frame-Options": "", // Override Vercel's default DENY
   };
 };
