@@ -19,8 +19,9 @@ export default async function handleRequest(
   // Add Shopify's document headers first
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // Remove X-Frame-Options to allow iframe embedding
+  // Forcefully remove X-Frame-Options to allow iframe embedding
   responseHeaders.delete("X-Frame-Options");
+  responseHeaders.set("X-Frame-Options", "");
   
   // Set proper CSP for Shopify domains
   responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
