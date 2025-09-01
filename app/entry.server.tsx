@@ -16,16 +16,31 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
+  // Get shop parameter from URL for dynamic CSP
+  const url = new URL(request.url);
+  const shop = url.searchParams.get('shop');
+  
   // CRITICAL: Remove X-Frame-Options BEFORE Shopify adds headers
   responseHeaders.delete("X-Frame-Options");
-  responseHeaders.set("Content-Security-Policy", "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com;");
+  
+  // Set dynamic CSP based on shop parameter (similar to server middleware approach)
+  if (shop) {
+    responseHeaders.set("Content-Security-Policy", `frame-ancestors https://${shop} https://admin.shopify.com https://*.myshopify.com;`);
+  } else {
+    responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
+  }
   
   addDocumentResponseHeaders(request, responseHeaders);
   
   // FORCE override after Shopify headers - be extremely aggressive
   responseHeaders.delete("X-Frame-Options");
-  // Don't set X-Frame-Options at all - let CSP handle it
-  responseHeaders.set("Content-Security-Policy", "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com;");
+  
+  // Re-apply dynamic CSP after Shopify headers
+  if (shop) {
+    responseHeaders.set("Content-Security-Policy", `frame-ancestors https://${shop} https://admin.shopify.com https://*.myshopify.com;`);
+  } else {
+    responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
+  }
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
     ? "onAllReady"
