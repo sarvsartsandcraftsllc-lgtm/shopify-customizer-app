@@ -20,8 +20,8 @@ export default async function handleRequest(
   const url = new URL(request.url);
   const shop = url.searchParams.get('shop');
   
-  // CRITICAL: Remove X-Frame-Options BEFORE Shopify adds headers
-  responseHeaders.delete("X-Frame-Options");
+  // CRITICAL: Set X-Frame-Options to SAMEORIGIN BEFORE Shopify adds headers
+  responseHeaders.set("X-Frame-Options", "SAMEORIGIN");
   
   // Set dynamic CSP based on shop parameter (similar to server middleware approach)
   if (shop) {
@@ -32,8 +32,8 @@ export default async function handleRequest(
   
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // FORCE override after Shopify headers - be extremely aggressive
-  responseHeaders.delete("X-Frame-Options");
+  // FORCE override after Shopify headers - set to SAMEORIGIN instead of DENY
+  responseHeaders.set("X-Frame-Options", "SAMEORIGIN");
   
   // Re-apply dynamic CSP after Shopify headers
   if (shop) {
@@ -41,6 +41,11 @@ export default async function handleRequest(
   } else {
     responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
   }
+  
+  // Add CORS headers to prevent CORS errors
+  responseHeaders.set("Access-Control-Allow-Origin", "*");
+  responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
     ? "onAllReady"

@@ -2,7 +2,7 @@
 
 client_id = "2b9b69a3fa0f318446147ef2dfe89c91"
 name = "prntondemand"
-application_url = "https://prntondemand-1ifv0khh9-baljeets-projects-4ac20978.vercel.app"
+application_url = "https://prntondemand-6rmyn63g6-baljeets-projects-4ac20978.vercel.app"
 embedded = true
 handle = "prntondemand-3"
 
@@ -18,7 +18,7 @@ api_version = "2025-07"
 scopes = "read_customers,read_orders,read_products,read_themes,write_customers,write_orders,write_products,write_themes"
 
 [auth]
-redirect_urls = ["https://prntondemand-1ifv0khh9-baljeets-projects-4ac20978.vercel.app/auth/callback"]
+redirect_urls = ["https://prntondemand-6rmyn63g6-baljeets-projects-4ac20978.vercel.app/auth/callback"]
 
 [pos]
 embedded = false

@@ -17,8 +17,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // If successful, redirect to app
       throw redirect(`/app?${url.searchParams.toString()}`);
     } catch (error) {
-      // If authentication fails, redirect to login
-      throw redirect(`/auth/login?${url.searchParams.toString()}`);
+      // If authentication fails, let Shopify handle the OAuth flow
+      // Don't redirect to login, let the authentication error bubble up
+      // This will trigger Shopify's OAuth flow
+      throw error;
     }
   }
 
