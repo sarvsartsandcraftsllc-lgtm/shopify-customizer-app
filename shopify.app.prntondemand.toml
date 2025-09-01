@@ -18,7 +18,7 @@ api_version = "2025-07"
 scopes = "read_customers,read_orders,read_products,read_themes,write_customers,write_orders,write_products,write_themes"
 
 [auth]
-redirect_urls = ["https://prntondemand-hg1vmxs66-baljeets-projects-4ac20978.vercel.app/api/auth/callback"]
+redirect_urls = ["https://prntondemand-hg1vmxs66-baljeets-projects-4ac20978.vercel.app/auth/callback"]
 
 [pos]
 embedded = false
