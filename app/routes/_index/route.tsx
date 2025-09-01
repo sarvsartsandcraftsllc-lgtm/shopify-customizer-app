@@ -9,8 +9,20 @@ import styles from "./styles.module.css";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
 
-  // If this is a Shopify request (has shop param), redirect to app route
-  // The app route will handle authentication properly
+  // If this is a Shopify embedded request, handle authentication here
+  if (url.searchParams.get("embedded") && url.searchParams.get("shop")) {
+    try {
+      // Try to authenticate the request
+      await authenticate.admin(request);
+      // If successful, redirect to app
+      throw redirect(`/app?${url.searchParams.toString()}`);
+    } catch (error) {
+      // If authentication fails, redirect to login
+      throw redirect(`/auth/login?${url.searchParams.toString()}`);
+    }
+  }
+
+  // If this is a regular Shopify request (has shop param but not embedded), redirect to app route
   if (url.searchParams.get("shop")) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
