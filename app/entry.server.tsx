@@ -16,22 +16,11 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // CRITICAL: Set headers BEFORE Shopify's headers to override them
-  responseHeaders.set("X-Frame-Options", "ALLOWALL");
-  responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
-  
-  // Add Shopify's document headers
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // FORCE override after Shopify headers - be more aggressive
+  // Override headers for iframe embedding
   responseHeaders.delete("X-Frame-Options");
-  responseHeaders.set("X-Frame-Options", "ALLOWALL");
-  responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
-  
-  // Additional headers to ensure iframe embedding works
-  responseHeaders.set("Access-Control-Allow-Origin", "*");
-  responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  responseHeaders.set("Content-Security-Policy", "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com;");
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
     ? "onAllReady"

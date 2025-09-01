@@ -3,28 +3,5 @@
   "outputDirectory": "build/server",
   "framework": "remix",
   "installCommand": "npm install",
-  "devCommand": "npm run dev",
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "ALLOWALL"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors https://admin.shopify.com https://*.myshopify.com;"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
-    }
-  ]
+  "devCommand": "npm run dev"
 }
