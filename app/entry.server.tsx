@@ -16,10 +16,15 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
+  // CRITICAL: Remove X-Frame-Options BEFORE Shopify adds headers
+  responseHeaders.delete("X-Frame-Options");
+  responseHeaders.set("Content-Security-Policy", "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com;");
+  
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // Override headers for iframe embedding
+  // FORCE override after Shopify headers - be extremely aggressive
   responseHeaders.delete("X-Frame-Options");
+  // Don't set X-Frame-Options at all - let CSP handle it
   responseHeaders.set("Content-Security-Policy", "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com;");
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
