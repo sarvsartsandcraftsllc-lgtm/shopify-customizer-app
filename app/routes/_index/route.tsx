@@ -9,19 +9,8 @@ import styles from "./styles.module.css";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
 
-  // If this is an embedded Shopify app request, authenticate it
-  if (url.searchParams.get("shop") && url.searchParams.get("embedded")) {
-    try {
-      await authenticate.admin(request);
-      // If authentication succeeds, redirect to app
-      throw redirect(`/app?${url.searchParams.toString()}`);
-    } catch (error) {
-      // If authentication fails, let it redirect to OAuth
-      throw error;
-    }
-  }
-
-  // For non-embedded requests, show the login form
+  // If this is a Shopify request (has shop param), redirect to app route
+  // The app route will handle authentication properly
   if (url.searchParams.get("shop")) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
