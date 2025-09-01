@@ -8,8 +8,18 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import getPrismaClient from "./db.server";
 
-// Lazy initialization function to prevent Prisma from being initialized during build
+// Lazy initialization function to prevent Prisma and environment variables from being accessed during build
 function createShopifyApp() {
+  // Validate environment variables before creating the app
+  const apiKey = process.env.SHOPIFY_API_KEY;
+  const apiSecretKey = process.env.SHOPIFY_API_SECRET;
+  const appUrl = process.env.SHOPIFY_APP_URL;
+  const scopes = process.env.SCOPES;
+  
+  if (!apiKey || !apiSecretKey || !appUrl) {
+    throw new Error(`Missing required environment variables: SHOPIFY_API_KEY=${!!apiKey}, SHOPIFY_API_SECRET=${!!apiSecretKey}, SHOPIFY_APP_URL=${!!appUrl}`);
+  }
+  
   // Create a lazy session storage that only initializes Prisma when actually used
   let prismaSessionStorage: PrismaSessionStorage | null = null;
   
@@ -47,11 +57,11 @@ function createShopifyApp() {
   };
   
   return shopifyApp({
-    apiKey: process.env.SHOPIFY_API_KEY,
-    apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
+    apiKey,
+    apiSecretKey,
     apiVersion: ApiVersion.January25,
-    scopes: process.env.SCOPES?.split(","),
-    appUrl: process.env.SHOPIFY_APP_URL || "",
+    scopes: scopes?.split(","),
+    appUrl,
     authPathPrefix: "/auth",
     sessionStorage: lazySessionStorage,
     distribution: AppDistribution.AppStore,
