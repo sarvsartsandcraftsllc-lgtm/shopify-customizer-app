@@ -2,20 +2,22 @@ import { json } from '@remix-run/node';
 import { createClient } from '@supabase/supabase-js';
 import type { ActionFunction } from '@remix-run/node';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client will be initialized in the action function
 
 export const action: ActionFunction = async ({ request }) => {
   if (request.method !== 'POST') {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
+
+  // Initialize Supabase client inside the action
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return json({ error: 'Missing Supabase environment variables' }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
     const body = await request.json();
@@ -72,4 +74,6 @@ export const action: ActionFunction = async ({ request }) => {
     return json({ error: 'Internal server error' }, { status: 500 });
   }
 };
+
+
 

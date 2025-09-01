@@ -1,15 +1,26 @@
-import { PrismaClient } from "@prisma/client";
+// Conditional import to prevent build-time database connection
+let PrismaClient: any;
+
+function getPrismaClient() {
+  if (!PrismaClient) {
+    // Only import PrismaClient when actually needed
+    const { PrismaClient: PC } = require("@prisma/client");
+    PrismaClient = PC;
+  }
+  
+  if (process.env.NODE_ENV !== "production") {
+    if (!global.prismaGlobal) {
+      global.prismaGlobal = new PrismaClient();
+    }
+    return global.prismaGlobal;
+  }
+  
+  return new PrismaClient();
+}
 
 declare global {
-  var prismaGlobal: PrismaClient;
+  var prismaGlobal: any;
 }
 
-if (process.env.NODE_ENV !== "production") {
-  if (!global.prismaGlobal) {
-    global.prismaGlobal = new PrismaClient();
-  }
-}
-
-const prisma = global.prismaGlobal ?? new PrismaClient();
-
-export default prisma;
+// Export the function instead of the client
+export default getPrismaClient;

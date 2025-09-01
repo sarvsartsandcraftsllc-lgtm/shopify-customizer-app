@@ -3,15 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { ActionFunction } from '@remix-run/node';
 import crypto from 'crypto';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client will be initialized in the action function
 
 // Verify Shopify webhook HMAC
 function verifyWebhook(data: string, hmac: string): boolean {
@@ -33,6 +25,16 @@ export const action: ActionFunction = async ({ request }) => {
   if (request.method !== 'POST') {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
+
+  // Initialize Supabase client inside the action
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return json({ error: 'Missing Supabase environment variables' }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
     // Get the raw body for HMAC verification
@@ -118,4 +120,6 @@ export const action: ActionFunction = async ({ request }) => {
     return json({ error: 'Internal server error' }, { status: 500 });
   }
 };
+
+
 
