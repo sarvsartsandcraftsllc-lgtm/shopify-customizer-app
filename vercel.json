@@ -4,6 +4,11 @@
   "framework": "remix",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
+  "functions": {
+    "build/server/index.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
