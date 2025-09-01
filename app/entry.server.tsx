@@ -17,6 +17,10 @@ export default async function handleRequest(
   remixContext: EntryContext
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
+  
+  // Allow iframe embedding for Shopify apps
+  responseHeaders.set("X-Frame-Options", "ALLOWALL");
+  responseHeaders.set("Content-Security-Policy", "frame-ancestors *");
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
     ? "onAllReady"
