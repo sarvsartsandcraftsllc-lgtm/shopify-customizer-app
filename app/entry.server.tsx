@@ -16,15 +16,13 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // Allow iframe embedding for Shopify apps FIRST
-  responseHeaders.set("X-Frame-Options", "ALLOWALL");
-  responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
-  
-  // Then add Shopify's document headers
+  // Add Shopify's document headers first
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // Ensure our headers are still set after Shopify's headers
-  responseHeaders.set("X-Frame-Options", "ALLOWALL");
+  // Remove X-Frame-Options to allow iframe embedding
+  responseHeaders.delete("X-Frame-Options");
+  
+  // Set proper CSP for Shopify domains
   responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
