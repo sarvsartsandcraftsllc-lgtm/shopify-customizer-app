@@ -5,6 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
+import type { HeadersFunction } from "@remix-run/node";
 
 export default function App() {
   return (
@@ -28,3 +29,10 @@ export default function App() {
     </html>
   );
 }
+
+export const headers: HeadersFunction = () => {
+  return {
+    "Content-Security-Policy": "frame-ancestors https://admin.shopify.com https://*.myshopify.com;",
+    "X-Frame-Options": "",
+  };
+};

@@ -15,6 +15,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };
 
+
+
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>();
 
@@ -37,5 +39,11 @@ export function ErrorBoundary() {
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
+  const boundaryHeaders = boundary.headers(headersArgs);
+  
+  // Override headers to allow iframe embedding
+  boundaryHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
+  boundaryHeaders.delete("X-Frame-Options");
+  
+  return boundaryHeaders;
 };
