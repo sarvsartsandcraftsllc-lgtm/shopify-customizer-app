@@ -4,7 +4,6 @@
   "framework": "remix",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "appUrl": "https://prntondemand-caj66wj2y-baljeets-projects-4ac20978.vercel.app",
   "headers": [
     {
       "source": "/(.*)",
