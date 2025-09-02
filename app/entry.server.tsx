@@ -20,8 +20,8 @@ export default async function handleRequest(
   const url = new URL(request.url);
   const shop = url.searchParams.get('shop');
   
-  // CRITICAL: Set X-Frame-Options to SAMEORIGIN BEFORE Shopify adds headers
-  responseHeaders.set("X-Frame-Options", "SAMEORIGIN");
+  // CRITICAL: Completely remove X-Frame-Options BEFORE Shopify adds headers
+  responseHeaders.delete("X-Frame-Options");
   
   // Set dynamic CSP based on shop parameter (similar to server middleware approach)
   if (shop) {
@@ -32,8 +32,8 @@ export default async function handleRequest(
   
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // FORCE override after Shopify headers - set to SAMEORIGIN instead of DENY
-  responseHeaders.set("X-Frame-Options", "SAMEORIGIN");
+  // FORCE override after Shopify headers - completely remove X-Frame-Options
+  responseHeaders.delete("X-Frame-Options");
   
   // Re-apply dynamic CSP after Shopify headers
   if (shop) {
