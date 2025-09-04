@@ -74,38 +74,74 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       canvas.remove(existingBackground);
     }
 
-    fabric.Image.fromURL(imageUrl, (img) => {
-      if (!canvas) return;
+    // First, let's test if the image URL is accessible
+    fetch(imageUrl)
+      .then(response => {
+        console.log('Image fetch response:', response.status, response.ok);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        console.log('Image blob loaded:', blob);
+        const objectURL = URL.createObjectURL(blob);
+        
+        fabric.Image.fromURL(objectURL, (img) => {
+          if (!canvas) return;
 
-      console.log('T-shirt image loaded successfully', img);
+          console.log('T-shirt image loaded successfully', img);
 
-      // Scale image to fit canvas while maintaining aspect ratio
-      const canvasAspect = CANVAS_WIDTH / CANVAS_HEIGHT;
-      const imgAspect = img.width! / img.height!;
-      
-      let scale;
-      if (imgAspect > canvasAspect) {
-        scale = CANVAS_WIDTH / img.width!;
-      } else {
-        scale = CANVAS_HEIGHT / img.height!;
-      }
+          // Scale image to fit canvas while maintaining aspect ratio
+          const canvasAspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+          const imgAspect = img.width! / img.height!;
+          
+          let scale;
+          if (imgAspect > canvasAspect) {
+            scale = CANVAS_WIDTH / img.width!;
+          } else {
+            scale = CANVAS_HEIGHT / img.height!;
+          }
 
-      img.scale(scale);
-      img.set({
-        left: CANVAS_WIDTH / 2,
-        top: CANVAS_HEIGHT / 2,
-        originX: 'center',
-        originY: 'center',
-        selectable: false,
-        evented: false,
-        name: 'tshirt-background'
+          img.scale(scale);
+          img.set({
+            left: CANVAS_WIDTH / 2,
+            top: CANVAS_HEIGHT / 2,
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+            name: 'tshirt-background'
+          });
+
+          // Add new background
+          canvas.add(img);
+          canvas.sendToBack(img);
+          canvas.renderAll();
+          
+          // Clean up object URL
+          URL.revokeObjectURL(objectURL);
+        }, { crossOrigin: 'anonymous' });
+      })
+      .catch(error => {
+        console.error('Error loading t-shirt background:', error);
+        // Fallback: create a simple rectangle as background
+        const fallbackBackground = new fabric.Rect({
+          left: CANVAS_WIDTH / 2,
+          top: CANVAS_HEIGHT / 2,
+          width: CANVAS_WIDTH * 0.8,
+          height: CANVAS_HEIGHT * 0.8,
+          fill: '#f0f0f0',
+          originX: 'center',
+          originY: 'center',
+          selectable: false,
+          evented: false,
+          name: 'tshirt-background'
+        });
+        canvas.add(fallbackBackground);
+        canvas.sendToBack(fallbackBackground);
+        canvas.renderAll();
       });
-
-      // Add new background
-      canvas.add(img);
-      canvas.sendToBack(img);
-      canvas.renderAll();
-    }, { crossOrigin: 'anonymous' });
   }, [canvas]);
 
   // Load user images for specific view
@@ -616,6 +652,9 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
           value={selectedProduct}
           onChange={setSelectedProduct}
         />
+        <Button onClick={() => loadTShirtBackground(currentView)} size="slim">
+          Test Load Background
+        </Button>
       </div>
 
       {/* View Selector - Only render on client to avoid hydration issues */}
