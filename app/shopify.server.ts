@@ -4,9 +4,9 @@ import {
   AppDistribution,
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
-// import { MemorySessionStorage } from "@shopify/shopify-app-remix/server";
-import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import getPrismaClient from "./db.server";
+import { MemorySessionStorage } from "@shopify/shopify-app-session-storage-memory";
+// import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
+// import getPrismaClient from "./db.server";
 
 // Lazy initialization function to prevent Prisma and environment variables from being accessed during build
 function createShopifyApp() {
@@ -20,46 +20,8 @@ function createShopifyApp() {
     throw new Error(`Missing required environment variables: SHOPIFY_API_KEY=${!!apiKey}, SHOPIFY_API_SECRET=${!!apiSecretKey}, SHOPIFY_APP_URL=${!!appUrl}`);
   }
   
-  // Create a lazy session storage that only initializes Prisma when actually used
-  let prismaSessionStorage: PrismaSessionStorage | null = null;
-  
-  const lazySessionStorage = {
-    storeSession: async (session: any) => {
-      if (!prismaSessionStorage) {
-        const prismaClient = await getPrismaClient();
-        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
-      }
-      return prismaSessionStorage.storeSession(session);
-    },
-    loadSession: async (id: string) => {
-      if (!prismaSessionStorage) {
-        const prismaClient = await getPrismaClient();
-        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
-      }
-      return prismaSessionStorage.loadSession(id);
-    },
-    deleteSession: async (id: string) => {
-      if (!prismaSessionStorage) {
-        const prismaClient = await getPrismaClient();
-        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
-      }
-      return prismaSessionStorage.deleteSession(id);
-    },
-    deleteSessions: async (ids: string[]) => {
-      if (!prismaSessionStorage) {
-        const prismaClient = await getPrismaClient();
-        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
-      }
-      return prismaSessionStorage.deleteSessions(ids);
-    },
-    findSessionsByShop: async (shop: string) => {
-      if (!prismaSessionStorage) {
-        const prismaClient = await getPrismaClient();
-        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
-      }
-      return prismaSessionStorage.findSessionsByShop(shop);
-    }
-  };
+  // Use memory session storage (temporary solution to avoid database issues)
+  const sessionStorage = new MemorySessionStorage();
   
   return shopifyApp({
     apiKey,
@@ -68,7 +30,7 @@ function createShopifyApp() {
     scopes: scopes?.split(","),
     appUrl,
     authPathPrefix: "/auth",
-    sessionStorage: lazySessionStorage,
+    sessionStorage: sessionStorage,
     distribution: AppDistribution.AppStore,
     future: {
       unstable_newEmbeddedAuthStrategy: true,

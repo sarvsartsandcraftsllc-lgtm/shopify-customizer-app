@@ -30,3 +30,7 @@ If you can't access your old Supabase project, create a new one:
 3. Get the new DATABASE_URL
 4. Run the setup-supabase.sql script
 5. Update Vercel environment variables
+
+
+
+

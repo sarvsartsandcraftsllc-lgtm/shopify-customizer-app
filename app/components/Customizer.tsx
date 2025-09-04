@@ -34,13 +34,13 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const [currentView, setCurrentView] = useState<'front' | 'back'>('front');
   const [selectedProduct, setSelectedProduct] = useState('t-shirt');
   const [isClient, setIsClient] = useState(false);
-  const [frontImages, setFrontImages] = useState<fabric.Object[]>([]);
-  const [backImages, setBackImages] = useState<fabric.Object[]>([]);
+  const [frontImages, setFrontImages] = useState<any[]>([]);
+  const [backImages, setBackImages] = useState<any[]>([]);
 
-  // Canvas dimensions (12x14 inches @ 300 DPI)
-  const CANVAS_WIDTH = 3600; // 12 inches * 300 DPI
-  const CANVAS_HEIGHT = 4200; // 14 inches * 300 DPI
-  const PREVIEW_SCALE = 0.25; // Scale for preview
+  // Canvas dimensions (smaller for testing)
+  const CANVAS_WIDTH = 800; // Smaller canvas for testing
+  const CANVAS_HEIGHT = 1000; // Smaller canvas for testing
+  const PREVIEW_SCALE = 0.5; // Scale for preview
   const MAX_IMAGES = 2; // Maximum number of images allowed
 
   // Handle client-side hydration
@@ -74,94 +74,91 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       canvas.remove(existingBackground);
     }
 
-    // First test if the image URL is accessible
-    fetch(imageUrl)
-      .then(response => {
-        console.log('Image fetch response:', response.status, response.ok);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status}`);
-        }
-        return response.blob();
-      })
-      .then(blob => {
-        console.log('Image blob loaded successfully, size:', blob.size);
-        const objectURL = URL.createObjectURL(blob);
-        
-        fabric.Image.fromURL(objectURL, (img) => {
-          if (!canvas) {
-            console.error('Canvas is null when trying to add image');
-            return;
-          }
+    // Try a different approach - create image element first
+    console.log('=== IMAGE LOADING DEBUG START ===');
+    console.log('Loading image with alternative method...');
+    console.log('Image URL:', imageUrl);
+    console.log('Canvas exists:', !!canvas);
+    console.log('Canvas dimensions:', canvas?.getWidth(), 'x', canvas?.getHeight());
+    
+    // Create a new Image element
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      console.log('=== IMAGE LOADED SUCCESSFULLY ===');
+      console.log('Image loaded, dimensions:', img.width, 'x', img.height);
+      
+      if (!canvas) {
+        console.error('Canvas is null when trying to add image');
+        return;
+      }
 
-          if (!img) {
-            console.error('Failed to load image from URL:', imageUrl);
-            return;
-          }
-
-          console.log('T-shirt image loaded successfully', img);
-          console.log('Image dimensions:', img.width, 'x', img.height);
-
-          // Scale image to fit canvas while maintaining aspect ratio
-          const canvasAspect = CANVAS_WIDTH / CANVAS_HEIGHT;
-          const imgAspect = img.width! / img.height!;
-          
-          let scale;
-          if (imgAspect > canvasAspect) {
-            scale = CANVAS_WIDTH / img.width!;
-          } else {
-            scale = CANVAS_HEIGHT / img.height!;
-          }
-
-          console.log('Scaling image by factor:', scale);
-
-          img.scale(scale);
-          img.set({
-            left: CANVAS_WIDTH / 2,
-            top: CANVAS_HEIGHT / 2,
-            originX: 'center',
-            originY: 'center',
-            selectable: false,
-            evented: false,
-            name: 'tshirt-background'
-          });
-
-          canvas.add(img);
-          canvas.sendToBack(img);
-          canvas.renderAll();
-          
-          console.log('T-shirt background added to canvas, total objects:', canvas.getObjects().length);
-          
-          // Clean up object URL
-          URL.revokeObjectURL(objectURL);
-        }, {
-          crossOrigin: 'anonymous'
-        });
-      })
-      .catch(error => {
-        console.error('Error loading t-shirt background:', error);
-        
-        // Fallback: create a simple rectangle as placeholder
-        const fallbackRect = new fabric.Rect({
-          left: CANVAS_WIDTH / 2,
-          top: CANVAS_HEIGHT / 2,
-          width: CANVAS_WIDTH * 0.8,
-          height: CANVAS_HEIGHT * 0.8,
-          fill: '#f0f0f0',
-          stroke: '#ccc',
-          strokeWidth: 2,
-          originX: 'center',
-          originY: 'center',
-          selectable: false,
-          evented: false,
-          name: 'tshirt-background-fallback'
-        });
-        
-        canvas.add(fallbackRect);
-        canvas.sendToBack(fallbackRect);
-        canvas.renderAll();
-        
-        console.log('Added fallback rectangle for t-shirt background');
+      // Create Fabric image from the loaded image element
+      const fabricImg = new fabric.Image(img, {
+        left: CANVAS_WIDTH / 2,
+        top: CANVAS_HEIGHT / 2,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        name: 'tshirt-background'
       });
+
+      // Scale image to fit canvas while maintaining aspect ratio
+      const canvasAspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+      const imgAspect = img.width / img.height;
+      
+      let scale;
+      if (imgAspect > canvasAspect) {
+        scale = CANVAS_WIDTH / img.width;
+      } else {
+        scale = CANVAS_HEIGHT / img.height;
+      }
+
+      console.log('Scaling image by factor:', scale);
+      fabricImg.scale(scale);
+
+      console.log('About to add image to canvas...');
+      canvas.add(fabricImg);
+      canvas.renderAll();
+      
+      console.log('T-shirt background added to canvas, total objects:', canvas.getObjects().length);
+      console.log('Canvas objects:', canvas.getObjects().map(obj => ({ name: obj.name, type: obj.type })));
+      console.log('=== IMAGE LOADING DEBUG END ===');
+    };
+    
+    img.onerror = (error) => {
+      console.error('=== IMAGE LOADING ERROR ===');
+      console.error('Error loading image:', error);
+      console.log('Adding fallback rectangle...');
+      
+      // Add fallback rectangle
+      const fallbackRect = new fabric.Rect({
+        left: CANVAS_WIDTH / 2,
+        top: CANVAS_HEIGHT / 2,
+        width: CANVAS_WIDTH * 0.8,
+        height: CANVAS_HEIGHT * 0.8,
+        fill: '#f0f0f0',
+        stroke: '#ccc',
+        strokeWidth: 2,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        name: 'tshirt-background-fallback'
+      });
+      
+      canvas.add(fallbackRect);
+      canvas.sendToBack(fallbackRect);
+      canvas.renderAll();
+      console.log('Added fallback rectangle for t-shirt background');
+      console.log('=== IMAGE LOADING DEBUG END ===');
+    };
+    
+    // Start loading the image
+    console.log('Starting image load...');
+    img.src = imageUrl;
   }, [canvas]);
 
   // Load user images for specific view
@@ -176,9 +173,32 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
     // Add images for current view
     const imagesToLoad = view === 'front' ? frontImages : backImages;
-    imagesToLoad.forEach(img => {
-      const clonedImg = img.clone();
-      canvas.add(clonedImg);
+    imagesToLoad.forEach(imageData => {
+      // Create a new Image element from stored data
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      img.onload = () => {
+        const fabricImg = new fabric.Image(img, {
+          left: imageData.left,
+          top: imageData.top,
+          originX: 'center',
+          originY: 'center',
+          selectable: true,
+          evented: true,
+          name: imageData.name
+        });
+        
+        fabricImg.scale(imageData.scale);
+        canvas.add(fabricImg);
+        canvas.renderAll();
+      };
+      
+      img.onerror = (error) => {
+        console.error('Error loading stored image:', error);
+      };
+      
+      img.src = imageData.src;
     });
 
     canvas.renderAll();
@@ -189,7 +209,10 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     console.log('Canvas initialization effect running, isClient:', isClient, 'canvasRef.current:', canvasRef.current, 'fabricCanvasRef.current:', fabricCanvasRef.current);
     
     if (isClient && canvasRef.current && !fabricCanvasRef.current) {
+      console.log('=== CANVAS INITIALIZATION DEBUG ===');
       console.log('Creating new fabric canvas...');
+      console.log('Canvas dimensions:', CANVAS_WIDTH, 'x', CANVAS_HEIGHT);
+      console.log('Canvas element:', canvasRef.current);
       
       const fabricCanvas = new fabric.Canvas(canvasRef.current, {
         width: CANVAS_WIDTH,
@@ -200,6 +223,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       });
 
       console.log('Fabric canvas created:', fabricCanvas);
+      console.log('Canvas width:', fabricCanvas.getWidth());
+      console.log('Canvas height:', fabricCanvas.getHeight());
 
       // Set canvas properties
       fabricCanvas.setDimensions({
@@ -323,22 +348,19 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     const reader = new FileReader();
 
     reader.onload = (e) => {
-      fabric.Image.fromURL(e.target?.result as string, (img) => {
+      const dataURL = e.target?.result as string;
+      
+      // Create a new Image element (same approach as background)
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      img.onload = () => {
+        console.log('User image loaded, dimensions:', img.width, 'x', img.height);
+        
         if (!canvas) return;
 
-        console.log('Image loaded from file:', img);
-
-        // Scale image to fit within printable area (max 50% of canvas)
-        const maxWidth = CANVAS_WIDTH * 0.5;
-        const maxHeight = CANVAS_HEIGHT * 0.5;
-        const scale = Math.min(
-          maxWidth / img.width!,
-          maxHeight / img.height!,
-          1
-        );
-
-        img.scale(scale);
-        img.set({
+        // Create Fabric image from the loaded image element
+        const fabricImg = new fabric.Image(img, {
           left: CANVAS_WIDTH / 2,
           top: CANVAS_HEIGHT / 2,
           originX: 'center',
@@ -348,22 +370,47 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
           name: `user-image-${Date.now()}`
         });
 
-        // Add to canvas
-        canvas.add(img);
-        canvas.setActiveObject(img);
-        setSelectedObject(img);
+        // Scale image to fit within printable area (max 50% of canvas)
+        const maxWidth = CANVAS_WIDTH * 0.5;
+        const maxHeight = CANVAS_HEIGHT * 0.5;
+        const scale = Math.min(
+          maxWidth / img.width,
+          maxHeight / img.height,
+          1
+        );
 
-        // Save to appropriate view array
-        const clonedImg = img.clone();
+        console.log('Scaling user image by factor:', scale);
+        fabricImg.scale(scale);
+
+        // Add to canvas
+        canvas.add(fabricImg);
+        canvas.setActiveObject(fabricImg);
+        setSelectedObject(fabricImg);
+
+        // Save image data to appropriate view array
+        const imageData = {
+          src: dataURL,
+          left: CANVAS_WIDTH / 2,
+          top: CANVAS_HEIGHT / 2,
+          scale: scale,
+          name: `user-image-${Date.now()}`
+        };
+        
         if (currentView === 'front') {
-          setFrontImages(prev => [...prev, clonedImg]);
+          setFrontImages(prev => [...prev, imageData]);
         } else {
-          setBackImages(prev => [...prev, clonedImg]);
+          setBackImages(prev => [...prev, imageData]);
         }
 
         canvas.renderAll();
-        console.log('Image added to canvas successfully');
-      }, { crossOrigin: 'anonymous' });
+        console.log('User image added to canvas successfully');
+      };
+      
+      img.onerror = (error) => {
+        console.error('Error loading user image:', error);
+      };
+      
+      img.src = dataURL;
     };
 
     reader.readAsDataURL(file);

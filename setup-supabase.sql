@@ -27,3 +27,7 @@ CREATE INDEX IF NOT EXISTS "Session_shop_idx" ON "Session"("shop");
 -- Grant necessary permissions
 GRANT ALL ON "Session" TO anon, authenticated;
 GRANT ALL ON "Session" TO service_role;
+
+
+
+
