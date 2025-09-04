@@ -166,7 +166,11 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
   // Initialize fabric.js canvas
   useEffect(() => {
+    console.log('Canvas initialization effect running, canvasRef.current:', canvasRef.current, 'fabricCanvasRef.current:', fabricCanvasRef.current);
+    
     if (canvasRef.current && !fabricCanvasRef.current) {
+      console.log('Creating new fabric canvas...');
+      
       const fabricCanvas = new fabric.Canvas(canvasRef.current, {
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
@@ -175,11 +179,15 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         preserveObjectBlockStacking: true,
       });
 
+      console.log('Fabric canvas created:', fabricCanvas);
+
       // Set canvas properties
       fabricCanvas.setDimensions({
         width: CANVAS_WIDTH * PREVIEW_SCALE,
         height: CANVAS_HEIGHT * PREVIEW_SCALE,
       });
+
+      console.log('Canvas dimensions set');
 
       // Enable object selection
       fabricCanvas.on('selection:created', (e) => {
@@ -196,6 +204,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
       fabricCanvasRef.current = fabricCanvas;
       setCanvas(fabricCanvas);
+      
+      console.log('Canvas state set, canvas:', fabricCanvas);
 
       // Add printable area indicator
       const printableArea = new fabric.Rect({
@@ -213,9 +223,12 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       });
       fabricCanvas.add(printableArea);
       fabricCanvas.renderAll();
+      
+      console.log('Printable area added and canvas rendered');
 
       // Load initial t-shirt background after canvas is ready
       setTimeout(() => {
+        console.log('Loading initial t-shirt background...');
         loadTShirtBackground('front');
       }, 500);
     }
@@ -652,8 +665,36 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
           value={selectedProduct}
           onChange={setSelectedProduct}
         />
-        <Button onClick={() => loadTShirtBackground(currentView)} size="slim">
+        <Button onClick={() => {
+          console.log('Test button clicked, canvas:', canvas, 'currentView:', currentView);
+          if (canvas) {
+            loadTShirtBackground(currentView);
+          } else {
+            console.error('Canvas not initialized yet');
+          }
+        }} size="slim">
           Test Load Background
+        </Button>
+        <Button onClick={() => {
+          console.log('Test canvas button clicked, canvas:', canvas);
+          if (canvas) {
+            const testRect = new fabric.Rect({
+              left: 100,
+              top: 100,
+              width: 100,
+              height: 100,
+              fill: 'red',
+              selectable: true,
+              evented: true
+            });
+            canvas.add(testRect);
+            canvas.renderAll();
+            console.log('Test rectangle added to canvas');
+          } else {
+            console.error('Canvas not available for test');
+          }
+        }} size="slim">
+          Test Canvas
         </Button>
       </div>
 
