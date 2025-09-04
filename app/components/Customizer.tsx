@@ -58,6 +58,44 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     { label: 'Sweatshirt', value: 'sweatshirt' },
   ];
 
+  // Load t-shirt background image
+  const loadTShirtBackground = useCallback((view: 'front' | 'back') => {
+    if (!canvas) return;
+
+    const imageUrl = view === 'front' ? '/Front White Tshirt.png' : '/Back White Tshirt.png';
+    
+    fabric.Image.fromURL(imageUrl, (img) => {
+      if (!canvas) return;
+
+      // Scale image to fit canvas
+      const scale = Math.min(
+        CANVAS_WIDTH / img.width!,
+        CANVAS_HEIGHT / img.height!,
+        1
+      );
+
+      img.scale(scale);
+      img.set({
+        left: (CANVAS_WIDTH - img.width! * scale) / 2,
+        top: (CANVAS_HEIGHT - img.height! * scale) / 2,
+        selectable: false,
+        evented: false,
+        name: 'tshirt-background'
+      });
+
+      // Remove existing t-shirt background
+      const existingBackground = canvas.getObjects().find(obj => obj.name === 'tshirt-background');
+      if (existingBackground) {
+        canvas.remove(existingBackground);
+      }
+
+      // Add new background
+      canvas.add(img);
+      canvas.sendToBack(img);
+      canvas.renderAll();
+    });
+  }, [canvas]);
+
   // Initialize fabric.js canvas
   useEffect(() => {
     if (canvasRef.current && !fabricCanvasRef.current) {
@@ -103,6 +141,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         strokeDashArray: [10, 5],
         selectable: false,
         evented: false,
+        name: 'printable-area'
       });
       fabricCanvas.add(printableArea);
       fabricCanvas.renderAll();
@@ -115,6 +154,13 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       }
     };
   }, []);
+
+  // Load t-shirt background when view changes
+  useEffect(() => {
+    if (canvas && isClient) {
+      loadTShirtBackground(currentView);
+    }
+  }, [canvas, currentView, isClient, loadTShirtBackground]);
 
   // Count images on canvas
   const countImages = useCallback(() => {
@@ -278,23 +324,12 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const clearCanvas = useCallback(() => {
     if (!canvas) return;
 
-    canvas.clear();
-    canvas.backgroundColor = '#ffffff';
+    // Get all objects except background and printable area
+    const objectsToRemove = canvas.getObjects().filter(obj => 
+      obj.name !== 'tshirt-background' && obj.name !== 'printable-area'
+    );
     
-    // Re-add printable area indicator
-    const printableArea = new fabric.Rect({
-      left: 0,
-      top: 0,
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
-      fill: 'transparent',
-      stroke: '#ddd',
-      strokeWidth: 2,
-      strokeDashArray: [10, 5],
-      selectable: false,
-      evented: false,
-    });
-    canvas.add(printableArea);
+    objectsToRemove.forEach(obj => canvas.remove(obj));
     canvas.renderAll();
     setSelectedObject(null);
   }, [canvas]);

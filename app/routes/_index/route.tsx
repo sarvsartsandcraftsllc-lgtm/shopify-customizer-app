@@ -45,9 +45,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>PRNTONDEMAND - Custom Print Designer</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Create custom print-on-demand products with our advanced design tool. Upload images, add text, and design your perfect product.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -63,16 +63,13 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Custom Design Tool</strong>. Upload images and add text with our professional design interface.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>2-Image Limit</strong>. Add up to 2 images on the front of your t-shirt with smart prompts.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Print-Ready Output</strong>. Generate high-quality print files at 300 DPI for professional printing.
           </li>
         </ul>
       </div>

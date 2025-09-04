@@ -1,10 +1,10 @@
 // Conditional import to prevent build-time database connection
 let PrismaClient: any;
 
-function getPrismaClient() {
+async function getPrismaClient() {
   if (!PrismaClient) {
     // Only import PrismaClient when actually needed
-    const { PrismaClient: PC } = require("@prisma/client");
+    const { PrismaClient: PC } = await import("@prisma/client");
     PrismaClient = PC;
   }
   

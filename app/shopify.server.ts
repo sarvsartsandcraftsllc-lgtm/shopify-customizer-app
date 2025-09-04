@@ -26,31 +26,36 @@ function createShopifyApp() {
   const lazySessionStorage = {
     storeSession: async (session: any) => {
       if (!prismaSessionStorage) {
-        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+        const prismaClient = await getPrismaClient();
+        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
       }
       return prismaSessionStorage.storeSession(session);
     },
     loadSession: async (id: string) => {
       if (!prismaSessionStorage) {
-        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+        const prismaClient = await getPrismaClient();
+        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
       }
       return prismaSessionStorage.loadSession(id);
     },
     deleteSession: async (id: string) => {
       if (!prismaSessionStorage) {
-        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+        const prismaClient = await getPrismaClient();
+        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
       }
       return prismaSessionStorage.deleteSession(id);
     },
     deleteSessions: async (ids: string[]) => {
       if (!prismaSessionStorage) {
-        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+        const prismaClient = await getPrismaClient();
+        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
       }
       return prismaSessionStorage.deleteSessions(ids);
     },
     findSessionsByShop: async (shop: string) => {
       if (!prismaSessionStorage) {
-        prismaSessionStorage = new PrismaSessionStorage(getPrismaClient());
+        const prismaClient = await getPrismaClient();
+        prismaSessionStorage = new PrismaSessionStorage(prismaClient);
       }
       return prismaSessionStorage.findSessionsByShop(shop);
     }

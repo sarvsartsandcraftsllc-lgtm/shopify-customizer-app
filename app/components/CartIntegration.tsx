@@ -119,7 +119,7 @@ const CartIntegration: React.FC<CartIntegrationProps> = ({
   return (
     <div className="cart-integration">
       <Banner status="success">
-        <Stack vertical spacing="tight">
+        <Stack gap="200">
           <Text variant="bodyMd" as="p">
             <strong>Design Ready!</strong> Your custom design has been saved.
           </Text>
@@ -135,7 +135,7 @@ const CartIntegration: React.FC<CartIntegrationProps> = ({
       </Banner>
 
       <div className="cart-actions" style={{ marginTop: '16px' }}>
-        <Stack distribution="fillEvenly" spacing="tight">
+        <Stack distribution="fillEvenly" gap="200">
           <Button
             onClick={addToCart}
             primary
@@ -160,7 +160,7 @@ const CartIntegration: React.FC<CartIntegrationProps> = ({
         </Banner>
       )}
 
-      <style jsx>{`
+      <style jsx="true">{`
         .cart-integration {
           margin: 20px 0;
           padding: 20px;
