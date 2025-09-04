@@ -744,7 +744,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         </Modal.Section>
       </Modal>
 
-      <style jsx="true">{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .customizer-container {
           max-width: 1200px;
           margin: 0 auto;
@@ -858,7 +859,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
             padding: 10px;
           }
         }
-      `}</style>
+        `
+      }} />
     </div>
   );
 };
