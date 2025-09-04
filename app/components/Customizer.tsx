@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { fabric } from 'fabric';
+import * as fabric from 'fabric';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
-import { Button, TextField, Select, Stack, Card, Text, Badge, Spinner } from '@shopify/polaris';
+import { Button, TextField, Select, Card, Text, Badge, Spinner, Modal, ButtonGroup, BlockStack, InlineStack, ButtonGroup as PolarisButtonGroup } from '@shopify/polaris';
 
 interface CustomizerProps {
   productId: string;
@@ -28,11 +28,16 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const [isLoading, setIsLoading] = useState(false);
   const [designData, setDesignData] = useState<DesignData | null>(null);
   const [notes, setNotes] = useState('');
+  const [showImageLimitModal, setShowImageLimitModal] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [imageCount, setImageCount] = useState(0);
+  const [currentView, setCurrentView] = useState<'front' | 'back'>('front');
 
   // Canvas dimensions (12x14 inches @ 300 DPI)
   const CANVAS_WIDTH = 3600; // 12 inches * 300 DPI
   const CANVAS_HEIGHT = 4200; // 14 inches * 300 DPI
   const PREVIEW_SCALE = 0.25; // Scale for preview
+  const MAX_IMAGES = 2; // Maximum number of images allowed
 
   // Initialize fabric.js canvas
   useEffect(() => {
@@ -42,7 +47,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         height: CANVAS_HEIGHT,
         backgroundColor: '#ffffff',
         selection: true,
-        preserveObjectStacking: true,
+        preserveObjectBlockStacking: true,
       });
 
       // Set canvas properties
@@ -92,11 +97,41 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     };
   }, []);
 
+  // Count images on canvas
+  const countImages = useCallback(() => {
+    if (!canvas) return 0;
+    return canvas.getObjects().filter(obj => obj.type === 'image').length;
+  }, [canvas]);
+
+  // Update image count when canvas changes
+  useEffect(() => {
+    if (canvas) {
+      const count = countImages();
+      setImageCount(count);
+    }
+  }, [canvas, countImages]);
+
   // Handle image upload
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (!canvas || acceptedFiles.length === 0) return;
 
     const file = acceptedFiles[0];
+    const currentImageCount = countImages();
+
+    // Check if we've reached the maximum number of images
+    if (currentImageCount >= MAX_IMAGES) {
+      setPendingImageFile(file);
+      setShowImageLimitModal(true);
+      return;
+    }
+
+    addImageToCanvas(file);
+  }, [canvas, countImages]);
+
+  // Add image to canvas
+  const addImageToCanvas = useCallback((file: File) => {
+    if (!canvas) return;
+
     const reader = new FileReader();
 
     reader.onload = (e) => {
@@ -125,6 +160,36 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
     reader.readAsDataURL(file);
   }, [canvas]);
+
+  // Handle modal actions
+  const handleReplaceImage = useCallback(() => {
+    if (!canvas || !pendingImageFile) return;
+
+    // Remove all existing images
+    const images = canvas.getObjects().filter(obj => obj.type === 'image');
+    images.forEach(img => canvas.remove(img));
+
+    // Add the new image
+    addImageToCanvas(pendingImageFile);
+
+    setShowImageLimitModal(false);
+    setPendingImageFile(null);
+  }, [canvas, pendingImageFile, addImageToCanvas]);
+
+  const handleAddAnotherImage = useCallback(() => {
+    if (!canvas || !pendingImageFile) return;
+
+    // Add the new image
+    addImageToCanvas(pendingImageFile);
+
+    setShowImageLimitModal(false);
+    setPendingImageFile(null);
+  }, [canvas, pendingImageFile, addImageToCanvas]);
+
+  const handleCancelImageUpload = useCallback(() => {
+    setShowImageLimitModal(false);
+    setPendingImageFile(null);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -172,6 +237,22 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     canvas.remove(selectedObject);
     canvas.renderAll();
     setSelectedObject(null);
+  }, [canvas, selectedObject]);
+
+  // Bring selected object to front
+  const bringToFront = useCallback(() => {
+    if (!canvas || !selectedObject) return;
+
+    canvas.bringToFront(selectedObject);
+    canvas.renderAll();
+  }, [canvas, selectedObject]);
+
+  // Send selected object to back
+  const sendToBack = useCallback(() => {
+    if (!canvas || !selectedObject) return;
+
+    canvas.sendToBack(selectedObject);
+    canvas.renderAll();
   }, [canvas, selectedObject]);
 
   // Clear canvas
@@ -250,6 +331,47 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       resolve(dataURL);
     });
   }, [canvas]);
+
+  // Preview design
+  const previewDesign = useCallback(async () => {
+    if (!canvas) return;
+
+    try {
+      const previewDataUrl = await exportPreview();
+      // Open preview in new window
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        newWindow.document.write(`
+          <html>
+            <head><title>Design Preview</title></head>
+            <body style="margin:0; padding:20px; text-align:center; background:#f5f5f5;">
+              <h2>Design Preview</h2>
+              <img src="${previewDataUrl}" style="max-width:100%; border:1px solid #ddd; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+            </body>
+          </html>
+        `);
+      }
+    } catch (error) {
+      console.error('Preview failed:', error);
+    }
+  }, [canvas, exportPreview]);
+
+  // Download print file
+  const downloadPrintFile = useCallback(async () => {
+    if (!canvas) return;
+
+    try {
+      const printDataUrl = await exportPrintFile();
+      const link = document.createElement('a');
+      link.download = `design-${Date.now()}.png`;
+      link.href = printDataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  }, [canvas, exportPrintFile]);
 
   // Upload files to Supabase
   const uploadToSupabase = useCallback(async (previewDataUrl: string, printDataUrl: string): Promise<DesignData> => {
@@ -348,176 +470,319 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
   return (
     <div className="customizer-container">
-      <Card>
-        <div style={{ padding: '20px' }}>
-          <Stack vertical spacing="loose">
-            {/* Header */}
-            <div>
-              <Text variant="headingMd" as="h2">
-                Customize {productTitle}
-              </Text>
-              <Text variant="bodyMd" as="p" color="subdued">
-                Design your print-on-demand product
-              </Text>
-            </div>
+      {/* View Selector */}
+      <div className="view-selector">
+        <Text variant="bodyMd" as="span">View:</Text>
+        <PolarisButtonGroup>
+          <Button 
+            pressed={currentView === 'front'} 
+            onClick={() => setCurrentView('front')}
+            size="slim"
+          >
+            Front
+          </Button>
+          <Button 
+            pressed={currentView === 'back'} 
+            onClick={() => setCurrentView('back')}
+            size="slim"
+          >
+            Back
+          </Button>
+        </PolarisButtonGroup>
+      </div>
 
-            {/* Canvas Container */}
-            <div className="canvas-container">
-              <canvas
-                ref={canvasRef}
-                style={{
-                  border: '1px solid #ddd',
-                  borderRadius: '8px',
-                  cursor: 'crosshair',
-                }}
-              />
-            </div>
-
-            {/* Controls */}
-            <div className="controls-section">
-              <Stack vertical spacing="tight">
-                {/* Image Upload */}
-                <div {...getRootProps()} className="dropzone">
-                  <input {...getInputProps()} />
-                  {isDragActive ? (
-                    <Text variant="bodyMd">Drop images here...</Text>
-                  ) : (
-                    <Text variant="bodyMd">Drag & drop images here, or click to select</Text>
-                  )}
-                </div>
-
-                {/* Text Controls */}
-                <div className="text-controls">
-                  <Stack distribution="fillEvenly" spacing="tight">
-                    <TextField
-                      label="Text"
-                      value={textValue}
-                      onChange={setTextValue}
-                      placeholder="Enter text..."
-                    />
-                    <Select
-                      label="Font"
-                      options={fontOptions}
-                      value={fontFamily}
-                      onChange={setFontFamily}
-                    />
-                    <TextField
-                      label="Size"
-                      type="number"
-                      value={fontSize.toString()}
-                      onChange={(value) => setFontSize(parseInt(value) || 24)}
-                      min={8}
-                      max={200}
-                    />
-                    <div>
-                      <label>Color</label>
-                      <input
-                        type="color"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
-                        style={{ width: '100%', height: '40px', border: '1px solid #ddd', borderRadius: '4px' }}
-                      />
-                    </div>
-                    <Button onClick={addText} disabled={!textValue.trim()}>
-                      Add Text
-                    </Button>
-                  </Stack>
-                </div>
-
-                {/* Object Controls */}
-                {selectedObject && (
-                  <div className="object-controls">
-                    <Stack distribution="fillEvenly" spacing="tight">
-                      <Button onClick={deleteSelectedObject} destructive>
-                        Delete Selected
-                      </Button>
-                      <Button onClick={clearCanvas}>
-                        Clear All
-                      </Button>
-                    </Stack>
-                  </div>
-                )}
-
-                {/* Notes */}
-                <TextField
-                  label="Design Notes"
-                  value={notes}
-                  onChange={setNotes}
-                  placeholder="Add any special instructions or notes..."
-                  multiline={3}
-                />
-
-                {/* Save Design */}
-                <Button
-                  onClick={saveDesign}
-                  disabled={isLoading}
-                  primary
-                  fullWidth
-                >
-                  {isLoading ? <Spinner size="small" /> : 'Save Design & Add to Cart'}
-                </Button>
-
-                {/* Design Data Display */}
-                {designData && (
-                  <div className="design-data">
-                    <Badge status="success">Design Saved!</Badge>
-                    <Text variant="bodySm" as="p">
-                      Design ID: {designData.design_id}
-                    </Text>
-                    <Text variant="bodySm" as="p">
-                      Preview: <a href={designData.preview_url} target="_blank" rel="noopener noreferrer">View</a>
-                    </Text>
-                    <Text variant="bodySm" as="p">
-                      Print File: <a href={designData.print_url} target="_blank" rel="noopener noreferrer">Download</a>
-                    </Text>
-                  </div>
-                )}
-              </Stack>
-            </div>
-          </Stack>
+      {/* Main Canvas Area */}
+      <div className="canvas-section">
+        <div className="canvas-container">
+          <canvas
+            ref={canvasRef}
+            className="design-canvas"
+          />
         </div>
-      </Card>
+        <div className="printable-area-info">
+          <Text variant="bodySm" as="p">Printable Area: 12" x 14"</Text>
+          <Text variant="bodySm" as="p" color="subdued">Click and drag to position your design</Text>
+        </div>
+      </div>
 
-      <style jsx>{`
+      {/* Control Panels */}
+      <div className="control-panels">
+        {/* Upload Images Card */}
+        <Card>
+          <div className="control-card">
+            <Text variant="headingSm" as="h3">Upload Images</Text>
+            <div {...getRootProps()} className="upload-button">
+              <input {...getInputProps()} />
+              <Button size="large" icon="folder">
+                Upload Image
+              </Button>
+            </div>
+            <Text variant="bodySm" as="p" color="subdued">
+              PNG, JPG, SVG up to 30MB
+            </Text>
+            <Text variant="bodySm" as="p" color="subdued">
+              Images: {imageCount}/{MAX_IMAGES}
+            </Text>
+          </div>
+        </Card>
+
+        {/* Add Text Card */}
+        <Card>
+          <div className="control-card">
+            <Text variant="headingSm" as="h3">Add Text</Text>
+            <BlockStack gap="300">
+              <TextField
+                value={textValue}
+                onChange={setTextValue}
+                placeholder="Enter your text..."
+                autoComplete="off"
+              />
+              <InlineStack gap="200">
+                <Select
+                  options={fontOptions}
+                  value={fontFamily}
+                  onChange={setFontFamily}
+                />
+                <TextField
+                  type="number"
+                  value={fontSize.toString()}
+                  onChange={(value) => setFontSize(parseInt(value) || 24)}
+                  min={8}
+                  max={200}
+                  suffix="px"
+                />
+                <div className="color-picker">
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                  />
+                </div>
+              </InlineStack>
+              <Button 
+                onClick={addText} 
+                disabled={!textValue.trim()}
+                icon="pencil"
+                size="large"
+              >
+                Add Text
+              </Button>
+            </BlockStack>
+          </div>
+        </Card>
+
+        {/* Object Controls Card */}
+        <Card>
+          <div className="control-card">
+            <Text variant="headingSm" as="h3">Object Controls</Text>
+            <BlockStack gap="200">
+              <Button 
+                onClick={bringToFront} 
+                disabled={!selectedObject}
+                icon="arrowUp"
+                size="large"
+              >
+                Bring to Front
+              </Button>
+              <Button 
+                onClick={sendToBack} 
+                disabled={!selectedObject}
+                icon="arrowDown"
+                size="large"
+              >
+                Send to Back
+              </Button>
+              <Button 
+                onClick={deleteSelectedObject} 
+                disabled={!selectedObject}
+                icon="delete"
+                size="large"
+              >
+                Delete Selected
+              </Button>
+              <Button 
+                onClick={clearCanvas}
+                icon="checkmark"
+                size="large"
+              >
+                Clear All
+              </Button>
+            </BlockStack>
+          </div>
+        </Card>
+
+        {/* Export & Save Card */}
+        <Card>
+          <div className="control-card">
+            <Text variant="headingSm" as="h3">Export & Save</Text>
+            <BlockStack gap="200">
+              <Button 
+                onClick={previewDesign}
+                icon="view"
+                size="large"
+              >
+                Preview
+              </Button>
+              <Button 
+                onClick={downloadPrintFile}
+                icon="print"
+                size="large"
+              >
+                Print File
+              </Button>
+              <Button 
+                onClick={saveDesign}
+                disabled={isLoading}
+                primary
+                icon="save"
+                size="large"
+              >
+                {isLoading ? <Spinner size="small" /> : 'Save Design'}
+              </Button>
+            </BlockStack>
+          </div>
+        </Card>
+      </div>
+
+      {/* Design Data Display */}
+      {designData && (
+        <Card>
+          <div className="design-data">
+            <Badge status="success">Design Saved!</Badge>
+            <Text variant="bodySm" as="p">
+              Design ID: {designData.design_id}
+            </Text>
+            <Text variant="bodySm" as="p">
+              Preview: <a href={designData.preview_url} target="_blank" rel="noopener noreferrer">View</a>
+            </Text>
+            <Text variant="bodySm" as="p">
+              Print File: <a href={designData.print_url} target="_blank" rel="noopener noreferrer">Download</a>
+            </Text>
+          </div>
+        </Card>
+      )}
+
+      {/* Image Limit Modal */}
+      <Modal
+        open={showImageLimitModal}
+        onClose={handleCancelImageUpload}
+        title="Image Limit Reached"
+        primaryAction={{
+          content: 'Replace All Images',
+          onAction: handleReplaceImage,
+        }}
+        secondaryActions={[
+          {
+            content: 'Add Another Image',
+            onAction: handleAddAnotherImage,
+            disabled: imageCount >= MAX_IMAGES,
+          },
+          {
+            content: 'Cancel',
+            onAction: handleCancelImageUpload,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="500">
+            <Text variant="bodyMd" as="p">
+              You've reached the maximum limit of {MAX_IMAGES} images on the front of the t-shirt.
+            </Text>
+            <Text variant="bodyMd" as="p">
+              What would you like to do?
+            </Text>
+            <BlockStack gap="200">
+              <Text variant="bodyMd" as="p">
+                • <strong>Replace All Images:</strong> Remove all current images and add the new one
+              </Text>
+              <Text variant="bodyMd" as="p">
+                • <strong>Add Another Image:</strong> Add the new image alongside existing ones (if under limit)
+              </Text>
+              <Text variant="bodyMd" as="p">
+                • <strong>Cancel:</strong> Keep your current design unchanged
+              </Text>
+            </BlockStack>
+            {imageCount >= MAX_IMAGES && (
+              <Text variant="bodySm" as="p" color="critical">
+                Note: You cannot add more than {MAX_IMAGES} images. Choose "Replace All Images" to add this new image.
+              </Text>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      <style jsx="true">{`
         .customizer-container {
-          max-width: 100%;
+          max-width: 1200px;
           margin: 0 auto;
+          padding: 20px;
+          background: #f5f5f5;
+          min-height: 100vh;
+        }
+
+        .view-selector {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 20px;
+        }
+
+        .canvas-section {
+          background: white;
+          border-radius: 12px;
+          padding: 20px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         .canvas-container {
           display: flex;
           justify-content: center;
-          margin: 20px 0;
-          overflow: auto;
+          margin-bottom: 15px;
         }
 
-        .controls-section {
-          margin-top: 20px;
-        }
-
-        .dropzone {
-          border: 2px dashed #ddd;
+        .design-canvas {
+          border: 1px solid #e1e1e1;
           border-radius: 8px;
-          padding: 40px 20px;
+          cursor: crosshair;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .printable-area-info {
           text-align: center;
+          padding: 10px;
+          background: #f8f9fa;
+          border-radius: 6px;
+          border: 1px solid #e1e1e1;
+        }
+
+        .control-panels {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 20px;
+          margin-bottom: 20px;
+        }
+
+        .control-card {
+          padding: 20px;
+        }
+
+        .control-card h3 {
+          margin: 0 0 15px 0;
+          font-size: 16px;
+          font-weight: 600;
+        }
+
+        .upload-button {
+          margin-bottom: 10px;
+        }
+
+        .color-picker input[type="color"] {
+          width: 40px;
+          height: 40px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
           cursor: pointer;
-          transition: border-color 0.3s ease;
-        }
-
-        .dropzone:hover {
-          border-color: #008060;
-        }
-
-        .text-controls {
-          padding: 20px;
-          background: #f9f9f9;
-          border-radius: 8px;
-        }
-
-        .object-controls {
-          padding: 20px;
-          background: #f0f0f0;
-          border-radius: 8px;
         }
 
         .design-data {
@@ -538,6 +803,16 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
         .design-data a:hover {
           text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+          .control-panels {
+            grid-template-columns: 1fr;
+          }
+          
+          .customizer-container {
+            padding: 10px;
+          }
         }
       `}</style>
     </div>
