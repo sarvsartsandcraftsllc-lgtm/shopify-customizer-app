@@ -32,12 +32,31 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageCount, setImageCount] = useState(0);
   const [currentView, setCurrentView] = useState<'front' | 'back'>('front');
+  const [selectedProduct, setSelectedProduct] = useState('t-shirt');
+  const [isClient, setIsClient] = useState(false);
 
   // Canvas dimensions (12x14 inches @ 300 DPI)
   const CANVAS_WIDTH = 3600; // 12 inches * 300 DPI
   const CANVAS_HEIGHT = 4200; // 14 inches * 300 DPI
   const PREVIEW_SCALE = 0.25; // Scale for preview
   const MAX_IMAGES = 2; // Maximum number of images allowed
+
+  // Handle client-side hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Product options
+  const productOptions = [
+    { label: 'T-Shirt', value: 't-shirt' },
+    { label: 'Mug', value: 'mug' },
+    { label: 'Tumbler', value: 'tumbler' },
+    { label: 'Hoodie', value: 'hoodie' },
+    { label: 'Collar T-Shirt', value: 'collar-t-shirt' },
+    { label: 'Tank Top', value: 'tank-top' },
+    { label: 'Long Sleeve', value: 'long-sleeve' },
+    { label: 'Sweatshirt', value: 'sweatshirt' },
+  ];
 
   // Initialize fabric.js canvas
   useEffect(() => {
@@ -470,40 +489,54 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
   return (
     <div className="customizer-container">
-      {/* View Selector */}
-      <div className="view-selector">
-        <Text variant="bodyMd" as="span">View:</Text>
-        <PolarisButtonGroup>
-          <Button 
-            pressed={currentView === 'front'} 
-            onClick={() => setCurrentView('front')}
-            size="slim"
-          >
-            Front
-          </Button>
-          <Button 
-            pressed={currentView === 'back'} 
-            onClick={() => setCurrentView('back')}
-            size="slim"
-          >
-            Back
-          </Button>
-        </PolarisButtonGroup>
+      {/* Product Selector */}
+      <div className="product-selector">
+        <Text variant="bodyMd" as="span">Product:</Text>
+        <Select
+          options={productOptions}
+          value={selectedProduct}
+          onChange={setSelectedProduct}
+        />
       </div>
 
-      {/* Main Canvas Area */}
-      <div className="canvas-section">
-        <div className="canvas-container">
-          <canvas
-            ref={canvasRef}
-            className="design-canvas"
-          />
+      {/* View Selector - Only render on client to avoid hydration issues */}
+      {isClient && (
+        <div className="view-selector">
+          <Text variant="bodyMd" as="span">View:</Text>
+          <PolarisButtonGroup>
+            <Button 
+              pressed={currentView === 'front'} 
+              onClick={() => setCurrentView('front')}
+              size="slim"
+            >
+              Front
+            </Button>
+            <Button 
+              pressed={currentView === 'back'} 
+              onClick={() => setCurrentView('back')}
+              size="slim"
+            >
+              Back
+            </Button>
+          </PolarisButtonGroup>
         </div>
-        <div className="printable-area-info">
-          <Text variant="bodySm" as="p">Printable Area: 12" x 14"</Text>
-          <Text variant="bodySm" as="p" color="subdued">Click and drag to position your design</Text>
+      )}
+
+      {/* Main Canvas Area - Only render on client to avoid hydration issues */}
+      {isClient && (
+        <div className="canvas-section">
+          <div className="canvas-container">
+            <canvas
+              ref={canvasRef}
+              className="design-canvas"
+            />
+          </div>
+          <div className="printable-area-info">
+            <Text variant="bodySm" as="p">Printable Area: 12" x 14"</Text>
+            <Text variant="bodySm" as="p" color="subdued">Click and drag to position your design</Text>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Control Panels */}
       <div className="control-panels">
@@ -718,6 +751,17 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
           padding: 20px;
           background: #f5f5f5;
           min-height: 100vh;
+        }
+
+        .product-selector {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 20px;
+          background: white;
+          padding: 15px;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .view-selector {
