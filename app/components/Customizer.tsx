@@ -74,7 +74,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       canvas.remove(existingBackground);
     }
 
-    // First, let's test if the image URL is accessible
+    // First test if the image URL is accessible
     fetch(imageUrl)
       .then(response => {
         console.log('Image fetch response:', response.status, response.ok);
@@ -84,13 +84,22 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         return response.blob();
       })
       .then(blob => {
-        console.log('Image blob loaded:', blob);
+        console.log('Image blob loaded successfully, size:', blob.size);
         const objectURL = URL.createObjectURL(blob);
         
         fabric.Image.fromURL(objectURL, (img) => {
-          if (!canvas) return;
+          if (!canvas) {
+            console.error('Canvas is null when trying to add image');
+            return;
+          }
+
+          if (!img) {
+            console.error('Failed to load image from URL:', imageUrl);
+            return;
+          }
 
           console.log('T-shirt image loaded successfully', img);
+          console.log('Image dimensions:', img.width, 'x', img.height);
 
           // Scale image to fit canvas while maintaining aspect ratio
           const canvasAspect = CANVAS_WIDTH / CANVAS_HEIGHT;
@@ -103,6 +112,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
             scale = CANVAS_HEIGHT / img.height!;
           }
 
+          console.log('Scaling image by factor:', scale);
+
           img.scale(scale);
           img.set({
             left: CANVAS_WIDTH / 2,
@@ -114,33 +125,42 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
             name: 'tshirt-background'
           });
 
-          // Add new background
           canvas.add(img);
           canvas.sendToBack(img);
           canvas.renderAll();
           
+          console.log('T-shirt background added to canvas, total objects:', canvas.getObjects().length);
+          
           // Clean up object URL
           URL.revokeObjectURL(objectURL);
-        }, { crossOrigin: 'anonymous' });
+        }, {
+          crossOrigin: 'anonymous'
+        });
       })
       .catch(error => {
         console.error('Error loading t-shirt background:', error);
-        // Fallback: create a simple rectangle as background
-        const fallbackBackground = new fabric.Rect({
+        
+        // Fallback: create a simple rectangle as placeholder
+        const fallbackRect = new fabric.Rect({
           left: CANVAS_WIDTH / 2,
           top: CANVAS_HEIGHT / 2,
           width: CANVAS_WIDTH * 0.8,
           height: CANVAS_HEIGHT * 0.8,
           fill: '#f0f0f0',
+          stroke: '#ccc',
+          strokeWidth: 2,
           originX: 'center',
           originY: 'center',
           selectable: false,
           evented: false,
-          name: 'tshirt-background'
+          name: 'tshirt-background-fallback'
         });
-        canvas.add(fallbackBackground);
-        canvas.sendToBack(fallbackBackground);
+        
+        canvas.add(fallbackRect);
+        canvas.sendToBack(fallbackRect);
         canvas.renderAll();
+        
+        console.log('Added fallback rectangle for t-shirt background');
       });
   }, [canvas]);
 
@@ -166,9 +186,9 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
   // Initialize fabric.js canvas
   useEffect(() => {
-    console.log('Canvas initialization effect running, canvasRef.current:', canvasRef.current, 'fabricCanvasRef.current:', fabricCanvasRef.current);
+    console.log('Canvas initialization effect running, isClient:', isClient, 'canvasRef.current:', canvasRef.current, 'fabricCanvasRef.current:', fabricCanvasRef.current);
     
-    if (canvasRef.current && !fabricCanvasRef.current) {
+    if (isClient && canvasRef.current && !fabricCanvasRef.current) {
       console.log('Creating new fabric canvas...');
       
       const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -183,8 +203,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
       // Set canvas properties
       fabricCanvas.setDimensions({
-        width: CANVAS_WIDTH * PREVIEW_SCALE,
-        height: CANVAS_HEIGHT * PREVIEW_SCALE,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
       });
 
       console.log('Canvas dimensions set');
@@ -231,6 +251,12 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         console.log('Loading initial t-shirt background...');
         loadTShirtBackground('front');
       }, 500);
+    } else {
+      console.log('Canvas initialization skipped - conditions not met:', {
+        isClient,
+        canvasRefExists: !!canvasRef.current,
+        fabricCanvasExists: !!fabricCanvasRef.current
+      });
     }
 
     return () => {
@@ -239,7 +265,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
         fabricCanvasRef.current = null;
       }
     };
-  }, []);
+  }, [isClient]);
 
   // Load t-shirt background when view changes
   useEffect(() => {
