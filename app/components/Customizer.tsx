@@ -104,10 +104,6 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       // Add new background
       canvas.add(img);
       canvas.sendToBack(img);
-      
-      // Load the appropriate user images for this view
-      loadUserImagesForView(view);
-      
       canvas.renderAll();
     }, { crossOrigin: 'anonymous' });
   }, [canvas]);
@@ -202,6 +198,13 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       loadTShirtBackground(currentView);
     }
   }, [canvas, currentView, isClient, loadTShirtBackground]);
+
+  // Load user images when view changes
+  useEffect(() => {
+    if (canvas && isClient) {
+      loadUserImagesForView(currentView);
+    }
+  }, [canvas, currentView, isClient, loadUserImagesForView]);
 
   // Count images for current view
   const countImages = useCallback(() => {
