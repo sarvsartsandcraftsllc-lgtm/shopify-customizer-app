@@ -64,8 +64,12 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
     const imageUrl = view === 'front' ? '/Front White Tshirt.png' : '/Back White Tshirt.png';
     
+    console.log('Loading t-shirt background:', imageUrl);
+    
     fabric.Image.fromURL(imageUrl, (img) => {
       if (!canvas) return;
+
+      console.log('T-shirt image loaded successfully');
 
       // Scale image to fit canvas
       const scale = Math.min(
@@ -93,7 +97,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       canvas.add(img);
       canvas.sendToBack(img);
       canvas.renderAll();
-    });
+    }, { crossOrigin: 'anonymous' });
   }, [canvas]);
 
   // Initialize fabric.js canvas
@@ -145,6 +149,11 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       });
       fabricCanvas.add(printableArea);
       fabricCanvas.renderAll();
+
+      // Load initial t-shirt background after canvas is ready
+      setTimeout(() => {
+        loadTShirtBackground('front');
+      }, 100);
     }
 
     return () => {
@@ -162,10 +171,12 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     }
   }, [canvas, currentView, isClient, loadTShirtBackground]);
 
-  // Count images on canvas
+  // Count images on canvas (excluding t-shirt background)
   const countImages = useCallback(() => {
     if (!canvas) return 0;
-    return canvas.getObjects().filter(obj => obj.type === 'image').length;
+    return canvas.getObjects().filter(obj => 
+      obj.type === 'image' && obj.name !== 'tshirt-background'
+    ).length;
   }, [canvas]);
 
   // Update image count when canvas changes
@@ -178,10 +189,13 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
   // Handle image upload
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    console.log('Files dropped:', acceptedFiles);
     if (!canvas || acceptedFiles.length === 0) return;
 
     const file = acceptedFiles[0];
     const currentImageCount = countImages();
+
+    console.log('Current image count:', currentImageCount, 'Max images:', MAX_IMAGES);
 
     // Check if we've reached the maximum number of images
     if (currentImageCount >= MAX_IMAGES) {
@@ -230,8 +244,10 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const handleReplaceImage = useCallback(() => {
     if (!canvas || !pendingImageFile) return;
 
-    // Remove all existing images
-    const images = canvas.getObjects().filter(obj => obj.type === 'image');
+    // Remove all existing user images (excluding t-shirt background)
+    const images = canvas.getObjects().filter(obj => 
+      obj.type === 'image' && obj.name !== 'tshirt-background'
+    );
     images.forEach(img => canvas.remove(img));
 
     // Add the new image
