@@ -34,6 +34,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const [currentView, setCurrentView] = useState<'front' | 'back'>('front');
   const [selectedProduct, setSelectedProduct] = useState('t-shirt');
   const [isClient, setIsClient] = useState(false);
+  const [frontImages, setFrontImages] = useState<fabric.Object[]>([]);
+  const [backImages, setBackImages] = useState<fabric.Object[]>([]);
 
   // Canvas dimensions (12x14 inches @ 300 DPI)
   const CANVAS_WIDTH = 3600; // 12 inches * 300 DPI
@@ -66,39 +68,69 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     
     console.log('Loading t-shirt background:', imageUrl);
     
+    // Remove existing t-shirt background first
+    const existingBackground = canvas.getObjects().find(obj => obj.name === 'tshirt-background');
+    if (existingBackground) {
+      canvas.remove(existingBackground);
+    }
+
     fabric.Image.fromURL(imageUrl, (img) => {
       if (!canvas) return;
 
-      console.log('T-shirt image loaded successfully');
+      console.log('T-shirt image loaded successfully', img);
 
-      // Scale image to fit canvas
-      const scale = Math.min(
-        CANVAS_WIDTH / img.width!,
-        CANVAS_HEIGHT / img.height!,
-        1
-      );
+      // Scale image to fit canvas while maintaining aspect ratio
+      const canvasAspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+      const imgAspect = img.width! / img.height!;
+      
+      let scale;
+      if (imgAspect > canvasAspect) {
+        scale = CANVAS_WIDTH / img.width!;
+      } else {
+        scale = CANVAS_HEIGHT / img.height!;
+      }
 
       img.scale(scale);
       img.set({
-        left: (CANVAS_WIDTH - img.width! * scale) / 2,
-        top: (CANVAS_HEIGHT - img.height! * scale) / 2,
+        left: CANVAS_WIDTH / 2,
+        top: CANVAS_HEIGHT / 2,
+        originX: 'center',
+        originY: 'center',
         selectable: false,
         evented: false,
         name: 'tshirt-background'
       });
 
-      // Remove existing t-shirt background
-      const existingBackground = canvas.getObjects().find(obj => obj.name === 'tshirt-background');
-      if (existingBackground) {
-        canvas.remove(existingBackground);
-      }
-
       // Add new background
       canvas.add(img);
       canvas.sendToBack(img);
+      
+      // Load the appropriate user images for this view
+      loadUserImagesForView(view);
+      
       canvas.renderAll();
     }, { crossOrigin: 'anonymous' });
   }, [canvas]);
+
+  // Load user images for specific view
+  const loadUserImagesForView = useCallback((view: 'front' | 'back') => {
+    if (!canvas) return;
+
+    // Remove existing user images
+    const existingUserImages = canvas.getObjects().filter(obj => 
+      obj.type === 'image' && obj.name !== 'tshirt-background' && obj.name !== 'printable-area'
+    );
+    existingUserImages.forEach(img => canvas.remove(img));
+
+    // Add images for current view
+    const imagesToLoad = view === 'front' ? frontImages : backImages;
+    imagesToLoad.forEach(img => {
+      const clonedImg = img.clone();
+      canvas.add(clonedImg);
+    });
+
+    canvas.renderAll();
+  }, [canvas, frontImages, backImages]);
 
   // Initialize fabric.js canvas
   useEffect(() => {
@@ -153,7 +185,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
       // Load initial t-shirt background after canvas is ready
       setTimeout(() => {
         loadTShirtBackground('front');
-      }, 100);
+      }, 500);
     }
 
     return () => {
@@ -171,13 +203,10 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     }
   }, [canvas, currentView, isClient, loadTShirtBackground]);
 
-  // Count images on canvas (excluding t-shirt background)
+  // Count images for current view
   const countImages = useCallback(() => {
-    if (!canvas) return 0;
-    return canvas.getObjects().filter(obj => 
-      obj.type === 'image' && obj.name !== 'tshirt-background'
-    ).length;
-  }, [canvas]);
+    return currentView === 'front' ? frontImages.length : backImages.length;
+  }, [currentView, frontImages, backImages]);
 
   // Update image count when canvas changes
   useEffect(() => {
@@ -211,42 +240,71 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const addImageToCanvas = useCallback((file: File) => {
     if (!canvas) return;
 
+    console.log('Adding image to canvas:', file.name);
+
     const reader = new FileReader();
 
     reader.onload = (e) => {
       fabric.Image.fromURL(e.target?.result as string, (img) => {
-        // Scale image to fit within printable area
+        if (!canvas) return;
+
+        console.log('Image loaded from file:', img);
+
+        // Scale image to fit within printable area (max 50% of canvas)
+        const maxWidth = CANVAS_WIDTH * 0.5;
+        const maxHeight = CANVAS_HEIGHT * 0.5;
         const scale = Math.min(
-          CANVAS_WIDTH / img.width!,
-          CANVAS_HEIGHT / img.height!,
+          maxWidth / img.width!,
+          maxHeight / img.height!,
           1
         );
 
         img.scale(scale);
         img.set({
-          left: (CANVAS_WIDTH - img.width! * scale) / 2,
-          top: (CANVAS_HEIGHT - img.height! * scale) / 2,
+          left: CANVAS_WIDTH / 2,
+          top: CANVAS_HEIGHT / 2,
+          originX: 'center',
+          originY: 'center',
           selectable: true,
           evented: true,
+          name: `user-image-${Date.now()}`
         });
 
+        // Add to canvas
         canvas.add(img);
         canvas.setActiveObject(img);
-        canvas.renderAll();
         setSelectedObject(img);
-      });
+
+        // Save to appropriate view array
+        const clonedImg = img.clone();
+        if (currentView === 'front') {
+          setFrontImages(prev => [...prev, clonedImg]);
+        } else {
+          setBackImages(prev => [...prev, clonedImg]);
+        }
+
+        canvas.renderAll();
+        console.log('Image added to canvas successfully');
+      }, { crossOrigin: 'anonymous' });
     };
 
     reader.readAsDataURL(file);
-  }, [canvas]);
+  }, [canvas, currentView]);
 
   // Handle modal actions
   const handleReplaceImage = useCallback(() => {
     if (!canvas || !pendingImageFile) return;
 
-    // Remove all existing user images (excluding t-shirt background)
+    // Clear current view's images
+    if (currentView === 'front') {
+      setFrontImages([]);
+    } else {
+      setBackImages([]);
+    }
+
+    // Remove all user images from canvas
     const images = canvas.getObjects().filter(obj => 
-      obj.type === 'image' && obj.name !== 'tshirt-background'
+      obj.type === 'image' && obj.name !== 'tshirt-background' && obj.name !== 'printable-area'
     );
     images.forEach(img => canvas.remove(img));
 
@@ -255,7 +313,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
     setShowImageLimitModal(false);
     setPendingImageFile(null);
-  }, [canvas, pendingImageFile, addImageToCanvas]);
+  }, [canvas, pendingImageFile, addImageToCanvas, currentView]);
 
   const handleAddAnotherImage = useCallback(() => {
     if (!canvas || !pendingImageFile) return;
@@ -340,7 +398,14 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const clearCanvas = useCallback(() => {
     if (!canvas) return;
 
-    // Get all objects except background and printable area
+    // Clear the appropriate view's images
+    if (currentView === 'front') {
+      setFrontImages([]);
+    } else {
+      setBackImages([]);
+    }
+
+    // Remove all user images from canvas
     const objectsToRemove = canvas.getObjects().filter(obj => 
       obj.name !== 'tshirt-background' && obj.name !== 'printable-area'
     );
@@ -348,7 +413,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     objectsToRemove.forEach(obj => canvas.remove(obj));
     canvas.renderAll();
     setSelectedObject(null);
-  }, [canvas]);
+  }, [canvas, currentView]);
 
   // Export preview (small PNG)
   const exportPreview = useCallback(async (): Promise<string> => {
