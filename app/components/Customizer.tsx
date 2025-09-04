@@ -657,6 +657,21 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
 
   return (
     <div className="customizer-container">
+      {/* Simple Test Section */}
+      <div style={{ padding: '20px', background: 'lightblue', margin: '10px' }}>
+        <Text variant="headingMd" as="h2">Customizer Component Loaded!</Text>
+        <Text variant="bodyMd" as="p">Canvas State: {canvas ? 'Initialized' : 'Not Initialized'}</Text>
+        <Text variant="bodyMd" as="p">Client State: {isClient ? 'Client Side' : 'Server Side'}</Text>
+        <Text variant="bodyMd" as="p">Current View: {currentView}</Text>
+        
+        <Button onClick={() => {
+          console.log('Simple test button clicked');
+          alert('Button clicked! Canvas: ' + (canvas ? 'Yes' : 'No'));
+        }} size="large">
+          Simple Test Button
+        </Button>
+      </div>
+
       {/* Product Selector */}
       <div className="product-selector">
         <Text variant="bodyMd" as="span">Product:</Text>

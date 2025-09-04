@@ -20,6 +20,8 @@ export default function Index() {
   // Force cache refresh
   const { productId, variantId, productTitle } = useLoaderData<typeof loader>();
 
+  console.log('App Index component rendering with data:', { productId, variantId, productTitle });
+
   return (
     <Page>
       <TitleBar title="PRNTONDEMAND Customizer" />
@@ -33,16 +35,22 @@ export default function Index() {
               <Text variant="bodyMd" as="p">
                 Design your custom print-on-demand product with our easy-to-use customizer.
               </Text>
+              <Text variant="bodyMd" as="p" color="subdued">
+                Debug: Product ID: {productId}, Variant ID: {variantId}
+              </Text>
             </BlockStack>
           </Card>
         </Layout.Section>
 
         <Layout.Section>
-          <Customizer 
-            productId={productId}
-            variantId={variantId}
-            productTitle={productTitle}
-          />
+          <Card>
+            <Text variant="headingMd" as="h2">Loading Customizer Component...</Text>
+            <Customizer 
+              productId={productId}
+              variantId={variantId}
+              productTitle={productTitle}
+            />
+          </Card>
         </Layout.Section>
       </Layout>
     </Page>
