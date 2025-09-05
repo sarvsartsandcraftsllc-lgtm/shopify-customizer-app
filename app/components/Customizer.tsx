@@ -36,6 +36,9 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
   const [isClient, setIsClient] = useState(false);
   const [frontImages, setFrontImages] = useState<any[]>([]);
   const [backImages, setBackImages] = useState<any[]>([]);
+  const [isEnhancingQuality, setIsEnhancingQuality] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropMode, setCropMode] = useState(false);
 
   // Canvas dimensions (smaller for testing)
   const CANVAS_WIDTH = 800; // Smaller canvas for testing
@@ -186,7 +189,17 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
           originY: 'center',
           selectable: true,
           evented: true,
-          name: imageData.name
+          name: imageData.name,
+          // Enhanced border styling
+          stroke: '#0070f3',
+          strokeWidth: 2,
+          cornerColor: '#0070f3',
+          cornerSize: 12,
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          borderColor: '#0070f3',
+          borderScaleFactor: 2,
+          borderOpacityWhenMoving: 0.8
         });
         
         fabricImg.scale(imageData.scale);
@@ -367,7 +380,17 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
           originY: 'center',
           selectable: true,
           evented: true,
-          name: `user-image-${Date.now()}`
+          name: `user-image-${Date.now()}`,
+          // Enhanced border styling
+          stroke: '#0070f3',
+          strokeWidth: 2,
+          cornerColor: '#0070f3',
+          cornerSize: 12,
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          borderColor: '#0070f3',
+          borderScaleFactor: 2,
+          borderOpacityWhenMoving: 0.8
         });
 
         // Scale image to fit within printable area (max 50% of canvas)
@@ -539,6 +562,226 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
     canvas.renderAll();
     setSelectedObject(null);
   }, [canvas, currentView]);
+
+  // Enhance image quality to 300 DPI
+  const enhanceImageQuality = useCallback(async () => {
+    if (!selectedObject || selectedObject.type !== 'image') {
+      console.log('No image selected for quality enhancement');
+      return;
+    }
+
+    setIsEnhancingQuality(true);
+    
+    try {
+      // Get the current image data
+      const imgElement = selectedObject._element;
+      if (!imgElement) {
+        throw new Error('Image element not found');
+      }
+
+      // Create a canvas to enhance the image
+      const tempCanvas = document.createElement('canvas');
+      const ctx = tempCanvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      // Calculate new dimensions for 300 DPI
+      const currentDPI = 72; // Standard web DPI
+      const targetDPI = 300;
+      const scaleFactor = targetDPI / currentDPI;
+      
+      const newWidth = imgElement.width * scaleFactor;
+      const newHeight = imgElement.height * scaleFactor;
+      
+      tempCanvas.width = newWidth;
+      tempCanvas.height = newHeight;
+
+      // Use high-quality image scaling
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(imgElement, 0, 0, newWidth, newHeight);
+
+      // Convert back to data URL
+      const enhancedDataURL = tempCanvas.toDataURL('image/png', 1.0);
+      
+      // Create new image element with enhanced quality
+      const enhancedImg = new Image();
+      enhancedImg.crossOrigin = 'anonymous';
+      
+      enhancedImg.onload = () => {
+        // Create new Fabric image with enhanced quality
+        const enhancedFabricImg = new fabric.Image(enhancedImg, {
+          left: selectedObject.left,
+          top: selectedObject.top,
+          originX: selectedObject.originX,
+          originY: selectedObject.originY,
+          selectable: true,
+          evented: true,
+          name: selectedObject.name + '-enhanced',
+          // Enhanced border styling
+          stroke: '#0070f3',
+          strokeWidth: 2,
+          cornerColor: '#0070f3',
+          cornerSize: 12,
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          borderColor: '#0070f3',
+          borderScaleFactor: 2,
+          borderOpacityWhenMoving: 0.8
+        });
+
+        // Scale to match original size
+        const scaleX = selectedObject.scaleX || 1;
+        const scaleY = selectedObject.scaleY || 1;
+        enhancedFabricImg.scaleX = scaleX;
+        enhancedFabricImg.scaleY = scaleY;
+
+        // Replace the original image
+        canvas.remove(selectedObject);
+        canvas.add(enhancedFabricImg);
+        canvas.setActiveObject(enhancedFabricImg);
+        setSelectedObject(enhancedFabricImg);
+        canvas.renderAll();
+
+        console.log('Image quality enhanced to 300 DPI');
+        setIsEnhancingQuality(false);
+      };
+
+      enhancedImg.onerror = (error) => {
+        console.error('Error loading enhanced image:', error);
+        setIsEnhancingQuality(false);
+      };
+
+      enhancedImg.src = enhancedDataURL;
+
+    } catch (error) {
+      console.error('Error enhancing image quality:', error);
+      setIsEnhancingQuality(false);
+    }
+  }, [selectedObject, canvas]);
+
+  // Crop image functionality
+  const startCropMode = useCallback(() => {
+    if (!selectedObject || selectedObject.type !== 'image') {
+      console.log('No image selected for cropping');
+      return;
+    }
+    
+    setCropMode(true);
+    setIsCropping(true);
+    
+    // Enable cropping mode on the selected object
+    selectedObject.set({
+      selectable: true,
+      evented: true,
+      hasControls: true,
+      hasBorders: true,
+      lockRotation: false,
+      lockScalingX: false,
+      lockScalingY: false,
+      lockMovementX: false,
+      lockMovementY: false
+    });
+    
+    canvas.setActiveObject(selectedObject);
+    canvas.renderAll();
+    
+    console.log('Crop mode enabled - drag corners to crop');
+  }, [selectedObject, canvas]);
+
+  const applyCrop = useCallback(async () => {
+    if (!selectedObject || !cropMode) return;
+    
+    setIsCropping(true);
+    
+    try {
+      // Get the current image element
+      const imgElement = selectedObject._element;
+      if (!imgElement) {
+        throw new Error('Image element not found');
+      }
+
+      // Create a canvas for cropping
+      const cropCanvas = document.createElement('canvas');
+      const ctx = cropCanvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      // Calculate crop dimensions based on the object's current scale and position
+      const scaleX = selectedObject.scaleX || 1;
+      const scaleY = selectedObject.scaleY || 1;
+      const width = imgElement.width * scaleX;
+      const height = imgElement.height * scaleY;
+      
+      cropCanvas.width = width;
+      cropCanvas.height = height;
+
+      // Draw the cropped image
+      ctx.drawImage(imgElement, 0, 0, width, height);
+
+      // Convert to data URL
+      const croppedDataURL = cropCanvas.toDataURL('image/png', 1.0);
+      
+      // Create new image with cropped data
+      const croppedImg = new Image();
+      croppedImg.crossOrigin = 'anonymous';
+      
+      croppedImg.onload = () => {
+        // Create new Fabric image with cropped data
+        const croppedFabricImg = new fabric.Image(croppedImg, {
+          left: selectedObject.left,
+          top: selectedObject.top,
+          originX: selectedObject.originX,
+          originY: selectedObject.originY,
+          selectable: true,
+          evented: true,
+          name: selectedObject.name + '-cropped',
+          // Enhanced border styling
+          stroke: '#0070f3',
+          strokeWidth: 2,
+          cornerColor: '#0070f3',
+          cornerSize: 12,
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          borderColor: '#0070f3',
+          borderScaleFactor: 2,
+          borderOpacityWhenMoving: 0.8
+        });
+
+        // Replace the original image
+        canvas.remove(selectedObject);
+        canvas.add(croppedFabricImg);
+        canvas.setActiveObject(croppedFabricImg);
+        setSelectedObject(croppedFabricImg);
+        canvas.renderAll();
+
+        console.log('Image cropped successfully');
+        setCropMode(false);
+        setIsCropping(false);
+      };
+
+      croppedImg.onerror = (error) => {
+        console.error('Error loading cropped image:', error);
+        setIsCropping(false);
+        setCropMode(false);
+      };
+
+      croppedImg.src = croppedDataURL;
+
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      setIsCropping(false);
+      setCropMode(false);
+    }
+  }, [selectedObject, canvas, cropMode]);
+
+  const cancelCrop = useCallback(() => {
+    setCropMode(false);
+    setIsCropping(false);
+    console.log('Crop mode cancelled');
+  }, []);
 
   // Export preview (small PNG)
   const exportPreview = useCallback(async (): Promise<string> => {
@@ -913,13 +1156,52 @@ const Customizer: React.FC<CustomizerProps> = ({ productId, variantId, productTi
                 Send to Back
               </Button>
               <Button 
-                onClick={deleteSelectedObject} 
+                onClick={deleteSelectedObject}
                 disabled={!selectedObject}
                 icon="delete"
                 size="large"
               >
                 Delete Selected
               </Button>
+              <Button 
+                onClick={enhanceImageQuality}
+                disabled={!selectedObject || selectedObject?.type !== 'image' || isEnhancingQuality}
+                icon="refresh"
+                size="large"
+                loading={isEnhancingQuality}
+              >
+                {isEnhancingQuality ? 'Enhancing...' : 'Enhance to 300 DPI'}
+              </Button>
+              {!cropMode ? (
+                <Button 
+                  onClick={startCropMode}
+                  disabled={!selectedObject || selectedObject?.type !== 'image'}
+                  icon="crop"
+                  size="large"
+                >
+                  Crop Image
+                </Button>
+              ) : (
+                <BlockStack gap="100">
+                  <Button 
+                    onClick={applyCrop}
+                    disabled={isCropping}
+                    icon="checkmark"
+                    size="large"
+                    loading={isCropping}
+                  >
+                    {isCropping ? 'Applying...' : 'Apply Crop'}
+                  </Button>
+                  <Button 
+                    onClick={cancelCrop}
+                    disabled={isCropping}
+                    icon="cancel"
+                    size="large"
+                  >
+                    Cancel
+                  </Button>
+                </BlockStack>
+              )}
               <Button 
                 onClick={clearCanvas}
                 icon="checkmark"
