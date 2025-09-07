@@ -1,5 +1,8 @@
 # @shopify/shopify-app-template-remix
 
+## 2025.09.07
+- Marked working state: customizer maintains per-side image state (upload/crop), background always present, toggle preserves each side.
+
 ## 2025.07.07
 - [#1103](https://github.com/Shopify/shopify-app-template-remix/pull/1086) Remove deprecated .npmrc config values
 

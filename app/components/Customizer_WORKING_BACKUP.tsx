@@ -5,34 +5,18 @@ import * as fabric from "fabric";
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 1000;
 
-const FONT_FAMILIES = [
-  "Arial",
-  "Times New Roman",
-  "Courier New",
-  "Impact",
-  "Verdana",
-  "Georgia",
-];
-
-type Side = "front" | "back";
+const FONT_FAMILIES = ["Arial", "Times New Roman", "Courier New", "Impact", "Verdana", "Georgia"];
 
 const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
 
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
-  const [currentView, setCurrentView] = useState<Side>("front");
+  const [currentView, setCurrentView] = useState<"front" | "back">("front");
 
   const [cropOverlay, setCropOverlay] = useState<fabric.Rect | null>(null);
   const [cropMode, setCropMode] = useState(false);
-  const [cropTarget, setCropTarget] = useState<fabric.Image | null>(null);
-
-  // store the saved JSON per side (exclude background object)
-  const designStates = useRef<{ front: any | null; back: any | null }>({
-    front: null,
-    back: null,
-  });
 
   // -----------------
   // Initialize canvas
@@ -40,151 +24,107 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
   useEffect(() => {
     if (!canvasRef.current || fabricCanvasRef.current) return;
 
-    const fc = new fabric.Canvas(canvasRef.current, {
+    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
     });
-    fabricCanvasRef.current = fc;
-    setCanvas(fc);
+    fabricCanvasRef.current = fabricCanvas;
+    setCanvas(fabricCanvas);
 
-    // initial background load (no await required here)
-    loadTShirtBackground(fc, "front").catch((e) => {
-      console.error("Error loading background on init:", e);
-    });
+    loadTShirtBackground(fabricCanvas, "front");
 
-    // Event listeners to track selection
-    fc.on("selection:created", (e) => {
+    // Event listeners
+    fabricCanvas.on("selection:created", (e) => {
       if (e.selected?.[0]) setSelectedObject(e.selected[0]);
     });
-    fc.on("selection:updated", (e) => {
+    fabricCanvas.on("selection:updated", (e) => {
       if (e.selected?.[0]) setSelectedObject(e.selected[0]);
     });
-    fc.on("selection:cleared", () => setSelectedObject(null));
+    fabricCanvas.on("selection:cleared", () => setSelectedObject(null));
 
     return () => {
-      fc.dispose();
+      fabricCanvas.dispose();
       fabricCanvasRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // -----------------
-  // Load T-shirt Background (returns promise when added)
+  // Load T-shirt Background
   // -----------------
-  const loadTShirtBackground = useCallback(
-    (fabricCanvas: fabric.Canvas, side: Side): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        try {
-          const path = side === "front" ? "/Front White Tshirt.png" : "/Back White Tshirt.png";
+  const loadTShirtBackground = useCallback((fabricCanvas: fabric.Canvas, side: "front" | "back") => {
+    const path = side === "front" ? "/Front White Tshirt.png" : "/Back White Tshirt.png";
 
-          // remove existing background if present
-          const existing = fabricCanvas.getObjects().find((o) => (o as any).name === "tshirt-background");
-          if (existing) {
-            fabricCanvas.remove(existing);
-          }
+    console.log("👕 Trying to load background image:", path);
 
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            const fabricImg = new fabric.Image(img, {
-              left: CANVAS_WIDTH / 2,
-              top: CANVAS_HEIGHT / 2,
-              originX: "center",
-              originY: "center",
-              selectable: false,
-              evented: false,
-              name: "tshirt-background",
-            });
+    // Test if image exists first
+    const testImg = new Image();
+    testImg.onload = () => {
+      console.log("✅ Image file exists and is accessible:", path);
+    };
+    testImg.onerror = () => {
+      console.error("❌ Image file not found or not accessible:", path);
+    };
+    testImg.src = path;
 
-            fabricImg.scaleToWidth(CANVAS_WIDTH);
-            // always keep background at the back
-            fabricCanvas.insertAt(0, fabricImg);
-            fabricCanvas.renderAll();
-            resolve();
-          };
-          img.onerror = (err) => {
-            console.error("Background image load error:", err);
-            // still resolve so the app doesn't hang — UI can handle missing file
-            resolve();
-          };
-          img.src = path;
-        } catch (err) {
-          reject(err);
-        }
-      });
-    },
-    []
-  );
-
-  // -----------------
-  // Save current side (store JSON, excluding background)
-  // -----------------
-  const saveCurrentDesign = useCallback(() => {
-    if (!canvas) return;
-    // include 'name' property in serialization
-    const json = (canvas as any).toJSON(["name"]);
-    // remove any background object from json.objects
-    if (Array.isArray(json.objects)) {
-      json.objects = json.objects.filter((o: any) => {
-        const name = o.name as string | undefined;
-        if (!name) return true;
-        if (name === "tshirt-background") return false;
-        if (name === "crop-overlay" || name.startsWith("crop-")) return false;
-        return true;
-      });
+    // remove existing
+    const existing = fabricCanvas.getObjects().find((o) => (o as any).name === "tshirt-background");
+    if (existing) {
+      console.log("🧹 Removing old background");
+      fabricCanvas.remove(existing);
     }
-    designStates.current[currentView] = json;
-  }, [canvas, currentView]);
+
+    // Use a more reliable approach with direct Image loading
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      console.log("🔄 Image loaded, creating Fabric object:", path);
+      const fabricImg = new fabric.Image(img, {
+        left: CANVAS_WIDTH / 2,
+        top: CANVAS_HEIGHT / 2,
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
+        name: "tshirt-background",
+      });
+      
+      console.log("✅ Fabric image created:", path, "Dimensions:", fabricImg.width, "x", fabricImg.height);
+      
+      fabricImg.scaleToWidth(CANVAS_WIDTH);
+      fabricCanvas.add(fabricImg);
+      fabricCanvas.renderAll();
+      console.log("🎨 Background image added to canvas");
+    };
+    img.onerror = (error) => {
+      console.error("❌ Image load error:", error);
+    };
+    img.src = path;
+  }, []);
 
   // -----------------
-  // Restore design for a side
-  // -----------------
-  const restoreDesign = useCallback(
-    async (side: Side) => {
-      if (!canvas) return;
-
-      // Clear ALL objects so we start fresh
-      canvas.clear();
-
-      // If we have a saved JSON for this side, load it (objects only)
-      const saved = designStates.current[side];
-      if (saved) {
-        // loadFromJSON accepts the same JSON shape as toJSON
-        canvas.loadFromJSON(saved, () => {
-          // Make sure background remains and render
-          loadTShirtBackground(canvas, side).then(() => {
-            canvas.renderAll();
-          }).catch(() => {
-            canvas.renderAll();
-          });
-        });
-          } else {
-        // nothing to restore — just background-only canvas
-        await loadTShirtBackground(canvas, side);
-        canvas.renderAll();
-      }
-    },
-    [canvas, loadTShirtBackground]
-  );
-
-  // -----------------
-  // Drop / Upload
+  // Upload Images
   // -----------------
   const onDrop = useCallback(
     (files: File[]) => {
       if (!canvas || files.length === 0) return;
       const file = files[0];
-
+      console.log("📁 File selected for upload:", file.name, file.type);
+      
       const reader = new FileReader();
       reader.onload = (e) => {
         const url = e.target?.result as string;
+        console.log("📖 File read successfully, creating image...");
+        
+        // Use the same reliable approach as background image
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
+          console.log("🖼️ Image loaded, creating Fabric object");
+          // Scale image to fit within t-shirt area (about 40% of canvas for better sizing)
           const maxWidth = CANVAS_WIDTH * 0.4;
           const maxHeight = CANVAS_HEIGHT * 0.4;
           const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
-
+          
           const fabricImg = new fabric.Image(img, {
             left: CANVAS_WIDTH / 2,
             top: CANVAS_HEIGHT / 2,
@@ -195,26 +135,24 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
             selectable: true,
             name: `uploaded-${currentView}-${Date.now()}`,
           });
-
+          
           canvas.add(fabricImg);
           canvas.setActiveObject(fabricImg);
           setSelectedObject(fabricImg);
           canvas.renderAll();
-          
-          // Save only the non-background objects
-          saveCurrentDesign();
+          console.log("✅ Uploaded image added to canvas");
         };
-        img.onerror = (err) => {
-          console.error("Upload image load error:", err);
+        img.onerror = (error) => {
+          console.error("❌ Error loading uploaded image:", error);
         };
         img.src = url;
       };
-      reader.onerror = (err) => {
-        console.error("FileReader error:", err);
+      reader.onerror = (error) => {
+        console.error("❌ Error reading file:", error);
       };
       reader.readAsDataURL(file);
     },
-    [canvas, currentView, saveCurrentDesign]
+    [canvas, currentView]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -224,17 +162,13 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
   });
 
   // -----------------
-  // Crop
+  // Crop Functions
   // -----------------
   const startCropMode = () => {
     if (!canvas || !selectedObject || selectedObject.type !== "image") return;
     if (cropMode) return;
 
-    // store target image explicitly (so we always crop the intended image)
-    const target = selectedObject as fabric.Image;
-    setCropTarget(target);
-
-    const bounds = target.getBoundingRect();
+    const bounds = selectedObject.getBoundingRect();
     const rect = new fabric.Rect({
       left: bounds.left + bounds.width * 0.25,
       top: bounds.top + bounds.height * 0.25,
@@ -253,18 +187,31 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
       evented: true,
       name: "crop-overlay",
     });
-
     canvas.add(rect);
     canvas.setActiveObject(rect);
     setCropOverlay(rect);
     setCropMode(true);
     canvas.renderAll();
+    console.log("✂️ Crop mode enabled - drag the orange rectangle to select crop area");
   };
 
   const applyCrop = () => {
-    if (!canvas || !cropOverlay || !cropTarget) return;
+    if (!canvas || !cropOverlay) return;
+    
+    // Find the original image object (not the crop overlay)
+    const imgObj = canvas.getObjects().find(obj => 
+      obj.type === 'image' && 
+      obj.name && 
+      obj.name.startsWith('uploaded-') && 
+      obj !== cropOverlay
+    ) as fabric.Image;
+    
+    if (!imgObj) {
+      console.error("❌ Could not find original image to crop");
+      return;
+    }
 
-    const imgObj = cropTarget;
+    console.log("✂️ Applying crop to image:", imgObj.name);
     const cropBounds = cropOverlay.getBoundingRect();
     const imageBounds = imgObj.getBoundingRect();
 
@@ -279,51 +226,45 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
       const sh = cropBounds.height * scaleY;
 
       const cropCanvas = document.createElement("canvas");
-      cropCanvas.width = Math.max(1, Math.round(sw));
-      cropCanvas.height = Math.max(1, Math.round(sh));
-      const ctx = cropCanvas.getContext("2d");
-      if (!ctx) {
-        console.error("Failed to get 2D context for crop");
-        return;
-      }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cropCanvas.width, cropCanvas.height);
+      cropCanvas.width = sw;
+      cropCanvas.height = sh;
+      cropCanvas.getContext("2d")?.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
+      // Use the same reliable approach as other image loading
       const croppedImg = new Image();
       croppedImg.crossOrigin = "anonymous";
       croppedImg.onload = () => {
+        console.log("🖼️ Cropped image loaded, creating Fabric object");
         const cropped = new fabric.Image(croppedImg, {
           left: CANVAS_WIDTH / 2,
           top: CANVAS_HEIGHT / 2,
           originX: "center",
           originY: "center",
           selectable: true,
-          name: `cropped-${currentView}-${Date.now()}`,
+          name: `cropped-${Date.now()}`,
         });
-
-        // remove only the targeted original image and the overlay
+        
+        // Remove original image and crop overlay
         canvas.remove(imgObj);
         canvas.remove(cropOverlay);
-
+        
+        // Add the cropped image
         canvas.add(cropped);
         canvas.setActiveObject(cropped);
         setSelectedObject(cropped);
-
+        
+        // Clean up crop state
         setCropOverlay(null);
         setCropMode(false);
-        setCropTarget(null);
-
+        
+        // Force render to ensure everything is updated
         canvas.renderAll();
-
-        // Save new state for current side
-        saveCurrentDesign();
+        console.log("✅ Crop applied successfully - original image and crop overlay removed");
       };
-      croppedImg.onerror = (err) => {
-        console.error("Cropped image load error:", err);
+      croppedImg.onerror = (error) => {
+        console.error("❌ Error loading cropped image:", error);
       };
       croppedImg.src = cropCanvas.toDataURL();
-    };
-    img.onerror = () => {
-      console.error("Error reconstructing image for crop");
     };
     img.src = dataURL;
   };
@@ -333,12 +274,10 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
     canvas.remove(cropOverlay);
     setCropOverlay(null);
     setCropMode(false);
-    setCropTarget(null);
-    canvas.renderAll();
   };
 
   // -----------------
-  // Text / object utilities
+  // Text Tool
   // -----------------
   const addText = () => {
     if (!canvas) return;
@@ -356,42 +295,35 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
     canvas.add(text);
     canvas.setActiveObject(text);
     setSelectedObject(text);
-    canvas.renderAll();
-    saveCurrentDesign();
   };
 
   const updateTextProperty = (prop: string, value: any) => {
     if (!canvas || !selectedObject || selectedObject.type !== "textbox") return;
     (selectedObject as fabric.Textbox).set(prop as any, value);
     canvas.renderAll();
-    saveCurrentDesign();
   };
 
   const deleteSelected = () => {
     if (!canvas || !selectedObject) return;
     canvas.remove(selectedObject);
     setSelectedObject(null);
-    canvas.renderAll();
-    saveCurrentDesign();
   };
 
   // -----------------
-  // Reset / preview / export
+  // Utilities
   // -----------------
   const resetCanvas = () => {
     if (!canvas) return;
-    // remove all non-background objects
     canvas.getObjects().forEach((obj) => {
       if ((obj as any).name !== "tshirt-background") canvas.remove(obj);
     });
     setSelectedObject(null);
       canvas.renderAll();
-    saveCurrentDesign();
   };
 
   const previewDesign = () => {
     if (!canvas) return;
-    const dataURL = canvas.toDataURL({ format: "png", multiplier: 1 });
+    const dataURL = canvas.toDataURL({ format: "png" });
     const w = window.open("");
     if (w) w.document.write(`<img src="${dataURL}" style="max-width:100%"/>`);
   };
@@ -405,27 +337,30 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
     a.click();
   };
 
-  // -----------------
-  // Toggle handler
-  // -----------------
-  const handleToggle = async () => {
-    if (!canvas) return;
-    // Clean up transient crop overlay before saving
-    if (cropOverlay) {
-      canvas.remove(cropOverlay);
-      setCropOverlay(null);
-      setCropMode(false);
-      setCropTarget(null);
-    }
-    // save current view state
-    saveCurrentDesign();
-    const next: Side = currentView === "front" ? "back" : "front";
-    setCurrentView(next);
-    await restoreDesign(next);
+  const copyImageToBack = () => {
+    if (!canvas || !selectedObject || selectedObject.type !== "image") return;
+    const dataURL = (selectedObject as fabric.Image).toDataURL();
+    setCurrentView("back");
+    loadTShirtBackground(canvas, "back");
+    fabric.Image.fromURL(dataURL, (img) => {
+      img.set({
+        left: CANVAS_WIDTH / 2,
+        top: CANVAS_HEIGHT / 2,
+        originX: "center",
+        originY: "center",
+        scaleX: 0.5,
+        scaleY: 0.5,
+        selectable: true,
+        name: `copied-back-${Date.now()}`,
+      });
+      canvas.add(img);
+      canvas.setActiveObject(img);
+      setSelectedObject(img);
+    });
   };
 
   // -----------------
-  // Render UI
+  // UI
   // -----------------
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
@@ -433,16 +368,19 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
       <div className="flex gap-6">
         {/* Canvas */}
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
+          <canvas ref={canvasRef} className="border rounded bg-white" />
+          <div className="mt-2 flex gap-2">
             <button
-              onClick={handleToggle}
+              onClick={() => {
+                const next = currentView === "front" ? "back" : "front";
+                setCurrentView(next);
+                loadTShirtBackground(canvas!, next);
+              }}
               className="px-3 py-1 bg-blue-500 text-white rounded"
             >
               Toggle View ({currentView})
             </button>
-            <div className="text-sm text-gray-600">Editing: <strong>{currentView.toUpperCase()}</strong></div>
           </div>
-          <canvas ref={(el) => (canvasRef.current = el)} className="border rounded bg-white" />
         </div>
 
         {/* Controls */}
@@ -451,8 +389,8 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
           <div
             {...getRootProps()}
             className={`border-2 border-dashed p-6 rounded-lg text-center cursor-pointer transition-all duration-200 hover:shadow-md ${
-              isDragActive
-                ? "border-blue-500 bg-blue-50 text-blue-700"
+              isDragActive 
+                ? "border-blue-500 bg-blue-50 text-blue-700" 
                 : "border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50"
             }`}
           >
@@ -460,7 +398,7 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
             <div className="flex flex-col items-center space-y-2">
               <div className="text-3xl">📁</div>
               <div className="font-semibold text-gray-700">
-                {isDragActive ? "Drop your image here" : `Upload Image (${currentView})`}
+                {isDragActive ? "Drop your image here" : "Upload Image"}
               </div>
               <div className="text-sm text-gray-500">
                 Drag & drop or click to browse
@@ -531,18 +469,30 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
               >
                 ✂️ Start Crop
               </button>
+              <button
+                onClick={copyImageToBack}
+                className="w-full bg-purple-600 text-white px-3 py-1 rounded"
+              >
+                Copy to Back
+              </button>
             </div>
           )}
 
-          {/* Crop Controls */}
+          {/* Crop Controls - Show when in crop mode */}
           {cropMode && (
             <div className="bg-orange-100 p-3 rounded space-y-2 border-2 border-orange-300">
               <h3 className="font-bold text-orange-800">Crop Controls</h3>
               <p className="text-sm text-orange-700">Drag the orange rectangle to select crop area</p>
-              <button onClick={applyCrop} className="w-full bg-blue-600 text-white px-3 py-1 rounded">
+              <button
+                onClick={applyCrop}
+                className="w-full bg-blue-600 text-white px-3 py-1 rounded"
+              >
                 ✅ Apply Crop
               </button>
-              <button onClick={cancelCrop} className="w-full bg-gray-600 text-white px-3 py-1 rounded">
+              <button
+                onClick={cancelCrop}
+                className="w-full bg-gray-600 text-white px-3 py-1 rounded"
+              >
                 ❌ Cancel Crop
               </button>
           </div>
@@ -551,13 +501,22 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
           {/* Canvas Controls */}
           <div className="bg-gray-100 p-3 rounded space-y-2">
             <h3 className="font-bold">Canvas Controls</h3>
-            <button onClick={resetCanvas} className="w-full bg-red-500 text-white px-3 py-1 rounded">
+            <button
+              onClick={resetCanvas}
+              className="w-full bg-red-500 text-white px-3 py-1 rounded"
+            >
               🔄 Reset Canvas
             </button>
-            <button onClick={previewDesign} className="w-full bg-green-600 text-white px-3 py-1 rounded">
+            <button
+                onClick={previewDesign}
+              className="w-full bg-green-600 text-white px-3 py-1 rounded"
+            >
               👀 Preview
             </button>
-            <button onClick={exportDesign} className="w-full bg-blue-600 text-white px-3 py-1 rounded">
+            <button
+              onClick={exportDesign}
+              className="w-full bg-blue-600 text-white px-3 py-1 rounded"
+            >
               💾 Export PNG
             </button>
           </div>
