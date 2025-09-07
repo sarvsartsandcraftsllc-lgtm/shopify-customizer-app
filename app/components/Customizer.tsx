@@ -152,16 +152,19 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
         // loadFromJSON accepts the same JSON shape as toJSON
         canvas.loadFromJSON(saved, () => {
           // Make sure background remains and render
-          loadTShirtBackground(canvas, side).then(() => {
-            canvas.renderAll();
-          }).catch(() => {
-            canvas.renderAll();
-          });
+          loadTShirtBackground(canvas, side)
+            .then(() => {
+              // Single render frame to avoid flicker
+              requestAnimationFrame(() => canvas.renderAll());
+            })
+            .catch(() => {
+              requestAnimationFrame(() => canvas.renderAll());
+            });
         });
           } else {
         // nothing to restore — just background-only canvas
         await loadTShirtBackground(canvas, side);
-        canvas.renderAll();
+        requestAnimationFrame(() => canvas.renderAll());
       }
     },
     [canvas, loadTShirtBackground]
@@ -226,6 +229,48 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
   // -----------------
   // Crop
   // -----------------
+  // Keep crop overlay constrained inside the image
+  function clampOverlayWithinImage(rect: fabric.Rect, img: fabric.Image) {
+    const imageBounds = img.getBoundingRect();
+    const rectWidth = rect.getScaledWidth();
+    const rectHeight = rect.getScaledHeight();
+    const minLeft = imageBounds.left;
+    const minTop = imageBounds.top;
+    const maxRight = imageBounds.left + imageBounds.width;
+    const maxBottom = imageBounds.top + imageBounds.height;
+
+    let nextLeft = rect.left ?? 0;
+    let nextTop = rect.top ?? 0;
+
+    if (nextLeft < minLeft) nextLeft = minLeft;
+    if (nextTop < minTop) nextTop = minTop;
+    if (nextLeft + rectWidth > maxRight) nextLeft = maxRight - rectWidth;
+    if (nextTop + rectHeight > maxBottom) nextTop = maxBottom - rectHeight;
+
+    rect.set({ left: nextLeft, top: nextTop });
+    rect.setCoords();
+  }
+
+  function clampOverlayScaleAndPosition(rect: fabric.Rect, img: fabric.Image) {
+    const imageBounds = img.getBoundingRect();
+
+    // Limit scale so overlay cannot exceed the image's dimensions
+    const baseW = rect.width ?? 0.0001;
+    const baseH = rect.height ?? 0.0001;
+    let scaleX = rect.scaleX ?? 1;
+    let scaleY = rect.scaleY ?? 1;
+
+    const maxScaleX = imageBounds.width / baseW;
+    const maxScaleY = imageBounds.height / baseH;
+    if (scaleX > maxScaleX) scaleX = maxScaleX;
+    if (scaleY > maxScaleY) scaleY = maxScaleY;
+    rect.set({ scaleX, scaleY });
+    rect.setCoords();
+
+    // Then clamp position
+    clampOverlayWithinImage(rect, img);
+  }
+
   const startCropMode = () => {
     if (!canvas || !selectedObject || selectedObject.type !== "image") return;
     if (cropMode) return;
@@ -233,6 +278,14 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
     // store target image explicitly (so we always crop the intended image)
     const target = selectedObject as fabric.Image;
     setCropTarget(target);
+
+    // Show a visible border on the target image while cropping
+    const anyTarget = target as any;
+    anyTarget.__prevStroke = target.stroke;
+    anyTarget.__prevStrokeWidth = target.strokeWidth;
+    anyTarget.__prevStrokeDashArray = (target as any).strokeDashArray;
+    target.set({ stroke: "#4f46e5", strokeWidth: 2, strokeDashArray: [6, 6] as any });
+    target.setCoords();
 
     const bounds = target.getBoundingRect();
     const rect = new fabric.Rect({
@@ -253,6 +306,16 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
       evented: true,
       name: "crop-overlay",
     });
+
+    // Disable rotation handle for simpler constraints
+    if (rect.setControlsVisibility) {
+      rect.setControlsVisibility({ mtr: false } as any);
+    }
+
+    // Clamp initial placement and keep it constrained on move/scale
+    clampOverlayWithinImage(rect, target);
+    rect.on("moving", () => clampOverlayWithinImage(rect, target));
+    rect.on("scaling", () => clampOverlayScaleAndPosition(rect, target));
 
     canvas.add(rect);
     canvas.setActiveObject(rect);
@@ -308,6 +371,14 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
         canvas.setActiveObject(cropped);
         setSelectedObject(cropped);
 
+        // restore previous stroke on old target if stored
+        const anyTarget = imgObj as any;
+        imgObj.set({
+          stroke: anyTarget.__prevStroke,
+          strokeWidth: anyTarget.__prevStrokeWidth ?? 0,
+          strokeDashArray: anyTarget.__prevStrokeDashArray,
+        } as any);
+
         setCropOverlay(null);
         setCropMode(false);
         setCropTarget(null);
@@ -330,6 +401,16 @@ const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
 
   const cancelCrop = () => {
     if (!canvas || !cropOverlay) return;
+    // remove temporary border from the crop target if present
+    if (cropTarget) {
+      const anyTarget = cropTarget as any;
+      cropTarget.set({
+        stroke: anyTarget.__prevStroke,
+        strokeWidth: anyTarget.__prevStrokeWidth ?? 0,
+        strokeDashArray: anyTarget.__prevStrokeDashArray,
+      } as any);
+      cropTarget.setCoords();
+    }
     canvas.remove(cropOverlay);
     setCropOverlay(null);
     setCropMode(false);
