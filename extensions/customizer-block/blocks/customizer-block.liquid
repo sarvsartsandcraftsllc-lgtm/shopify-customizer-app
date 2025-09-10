@@ -1,7 +1,5 @@
 {% comment %}
-  Customizer Block - Theme App Extension
-  This block injects a customizer root div on product pages
-  for the PRNTONDEMAND app to render its customizer interface
+  Storefront embed via Shopify App Proxy to avoid CSP issues
 {% endcomment %}
 
 {% schema %}
@@ -9,353 +7,47 @@
   "name": "Customizer Block",
   "target": "section",
   "settings": [
-    {
-      "type": "text",
-      "id": "title",
-      "label": "Block Title",
-      "default": "Product Customizer"
-    },
-    {
-      "type": "textarea",
-      "id": "description",
-      "label": "Description",
-      "default": "Customize your product with our easy-to-use customizer"
-    },
-    {
-      "type": "select",
-      "id": "position",
-      "label": "Position",
-      "options": [
-        {
-          "value": "above_product",
-          "label": "Above Product Details"
-        },
-        {
-          "value": "below_product",
-          "label": "Below Product Details"
-        },
-        {
-          "value": "after_description",
-          "label": "After Product Description"
-        },
-        {
-          "value": "before_gallery",
-          "label": "Before Product Gallery"
-        }
-      ],
-      "default": "below_product"
-    },
-    {
-      "type": "checkbox",
-      "id": "show_border",
-      "label": "Show Border",
-      "default": true
-    },
-    {
-      "type": "checkbox",
-      "id": "show_background",
-      "label": "Show Background",
-      "default": false
-    },
-    {
-      "type": "range",
-      "id": "padding",
-      "min": 0,
-      "max": 60,
-      "step": 5,
-      "unit": "px",
-      "label": "Padding",
-      "default": 20
-    },
-    {
-      "type": "range",
-      "id": "margin_top",
-      "min": 0,
-      "max": 60,
-      "step": 5,
-      "unit": "px",
-      "label": "Margin Top",
-      "default": 30
-    },
-    {
-      "type": "range",
-      "id": "margin_bottom",
-      "min": 0,
-      "max": 60,
-      "step": 5,
-      "unit": "px",
-      "label": "Margin Bottom",
-      "default": 30
-    }
-  ],
-
+    { "type": "text", "id": "title", "label": "Block Title", "default": "Product Customizer" },
+    { "type": "text", "id": "app_url", "label": "App URL (not used when proxy is enabled)", "default": "https://prntondemand.vercel.app" },
+    { "type": "checkbox", "id": "show_border", "label": "Show Border", "default": true },
+    { "type": "range", "id": "height", "min": 800, "max": 2000, "step": 50, "unit": "px", "label": "Embed height", "default": 1200 }
+  ]
 }
 {% endschema %}
 
-<div class="customizer-block-wrapper" 
-     data-product-id="{{ product.id }}"
-     data-product-title="{{ product.title | escape }}"
-     data-product-handle="{{ product.handle }}"
-     style="
-       padding: {{ block.settings.padding }}px;
-       margin-top: {{ block.settings.margin_top }}px;
-       margin-bottom: {{ block.settings.margin_bottom }}px;
-       {% if block.settings.show_border %}border: 1px solid #ddd;{% endif %}
-       {% if block.settings.show_background %}background-color: #f9f9f9;{% endif %}
-       border-radius: 8px;
-     ">
-  
+{% assign initial_variant_id = product.selected_or_first_available_variant.id %}
+
+<div class="customizer-block-wrapper"
+     data-initial-variant="{{ initial_variant_id }}"
+     style="{% if block.settings.show_border %}border:1px solid #e5e7eb;{% endif %} border-radius:8px; padding:8px;">
   {% if block.settings.title %}
-    <div class="customizer-block-header">
-      <h3 class="customizer-block-title">{{ block.settings.title }}</h3>
-      {% if block.settings.description %}
-        <p class="customizer-block-description">{{ block.settings.description }}</p>
-      {% endif %}
-    </div>
+    <h3 class="customizer-block-title" style="margin:8px 12px;">{{ block.settings.title }}</h3>
   {% endif %}
-  
-  <div class="customizer-block-content">
-    <!-- This div will be populated by the PRNTONDEMAND app -->
-    <div id="customizer-root" class="customizer-root-container">
-      <!-- Loading state while app initializes -->
-      <div class="customizer-loading">
-        <div class="loading-spinner"></div>
-        <p>Loading customizer...</p>
-      </div>
-    </div>
-  </div>
+  <iframe id="sf-customizer-iframe" title="Customizer"
+          src="{{ block.settings.app_url }}/customizer?variant={{ initial_variant_id }}&productTitle={{ product.title | url_encode }}&frontBg={{ product.selected_or_first_available_variant.featured_image | image_url | url_encode }}"
+          style="width:100%; height: {{ block.settings.height }}px; border:0; border-radius:6px; background:#fff;"></iframe>
 </div>
 
-<style>
-  /* Customizer Block Styles */
-  .customizer-block-wrapper {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    position: relative;
-  }
-
-  .customizer-block-header {
-    text-align: center;
-    margin-bottom: 20px;
-  }
-
-  .customizer-block-title {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .customizer-block-description {
-    margin: 0;
-    color: #666;
-    font-size: 1rem;
-    line-height: 1.5;
-  }
-
-  .customizer-block-content {
-    width: 100%;
-  }
-
-  .customizer-root-container {
-    width: 100%;
-    min-height: 200px;
-    position: relative;
-  }
-
-  /* Loading State */
-  .customizer-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    text-align: center;
-  }
-
-  .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #008060;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 15px;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .customizer-loading p {
-    margin: 0;
-    color: #666;
-    font-size: 0.9rem;
-  }
-
-  /* Responsive Design */
-  @media (max-width: 768px) {
-    .customizer-block-wrapper {
-      padding: 15px !important;
-      margin-top: 20px !important;
-      margin-bottom: 20px !important;
-    }
-
-    .customizer-block-title {
-      font-size: 1.25rem;
-    }
-
-    .customizer-block-description {
-      font-size: 0.9rem;
-    }
-
-    .customizer-root-container {
-      min-height: 150px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .customizer-block-wrapper {
-      padding: 10px !important;
-      margin-top: 15px !important;
-      margin-bottom: 15px !important;
-    }
-
-    .customizer-block-title {
-      font-size: 1.1rem;
-    }
-
-    .customizer-block-description {
-      font-size: 0.85rem;
-    }
-
-    .customizer-root-container {
-      min-height: 120px;
-    }
-  }
-
-  /* Print Styles */
-  @media print {
-    .customizer-block-wrapper {
-      border: none !important;
-      background: none !important;
-      margin: 10px 0 !important;
-      padding: 10px 0 !important;
-    }
-
-    .customizer-block-header {
-      display: none;
-    }
-
-    .customizer-root-container {
-      min-height: auto;
-    }
-  }
-
-  /* High Contrast Mode Support */
-  @media (prefers-contrast: high) {
-    .customizer-block-wrapper {
-      border: 2px solid #000 !important;
-    }
-
-    .customizer-block-title {
-      color: #000;
-    }
-
-    .customizer-block-description {
-      color: #333;
-    }
-  }
-
-  /* Reduced Motion Support */
-  @media (prefers-reduced-motion: reduce) {
-    .loading-spinner {
-      animation: none;
-      border-top-color: #008060;
-    }
-  }
-
-  /* Dark Mode Support (if theme supports it) */
-  @media (prefers-color-scheme: dark) {
-    .customizer-block-wrapper {
-      background-color: #2a2a2a !important;
-      color: #fff;
-    }
-
-    .customizer-block-title {
-      color: #fff;
-    }
-
-    .customizer-block-description {
-      color: #ccc;
-    }
-
-    .customizer-loading p {
-      color: #ccc;
-    }
-  }
-</style>
-
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const customizerBlock = document.querySelector('.customizer-block-wrapper');
-    if (!customizerBlock) return;
-
-    const productId = customizerBlock.dataset.productId;
-    const productTitle = customizerBlock.dataset.productTitle;
-    const productHandle = customizerBlock.dataset.productHandle;
-
-    // Initialize customizer block
-    function initializeCustomizer() {
-      const customizerRoot = document.getElementById('customizer-root');
-      if (!customizerRoot) return;
-
-      // Remove loading state
-      customizerRoot.innerHTML = '';
-
-      // Create customizer content
-      const customizerContent = document.createElement('div');
-      customizerContent.className = 'customizer-content';
-      customizerContent.innerHTML = `
-        <div class="customizer-placeholder">
-          <h4>Product Customizer</h4>
-          <p>Product: ${productTitle}</p>
-          <p>Ready for customization...</p>
-        </div>
-      `;
-
-      customizerRoot.appendChild(customizerContent);
-
-      // Dispatch custom event for app integration
-      window.dispatchEvent(new CustomEvent('customizerBlockReady', {
-        detail: {
-          productId,
-          productTitle,
-          productHandle,
-          customizerRoot
-        }
-      }));
+  document.addEventListener('DOMContentLoaded', function(){
+    const wrapper = document.querySelector('.customizer-block-wrapper');
+    if(!wrapper) return;
+    const iframe = document.getElementById('sf-customizer-iframe');
+    // Build a map of variantId -> featured_image URL for quick lookups on change
+    const variantImageById = {};
+    {% for variant in product.variants %}
+      variantImageById[{{ variant.id }}] = "{{ variant.featured_image | image_url }}";
+    {% endfor %}
+    const defaultImage = "{{ product.featured_image | image_url }}";
+    function updateHref(){
+      const input = document.querySelector('form[action*="/cart/add"] [name="id"], [name="id"][form]');
+      const vid = input && input.value ? input.value : wrapper.getAttribute('data-initial-variant');
+      const title = encodeURIComponent('{{ product.title | escape }}');
+      const img = encodeURIComponent(variantImageById[vid] || defaultImage);
+      iframe.src = '{{ block.settings.app_url }}/customizer?productTitle=' + title + '&variant=' + vid + '&frontBg=' + img;
     }
-
-    // Initialize after a short delay to ensure DOM is ready
-    setTimeout(initializeCustomizer, 100);
-
-    // Listen for app messages
-    window.addEventListener('message', function(event) {
-      if (event.data && event.data.type === 'CUSTOMIZER_APP_READY') {
-        // App is ready, initialize customizer
-        initializeCustomizer();
-      }
-    });
-
-    // Fallback initialization
-    setTimeout(function() {
-      if (document.querySelector('.customizer-loading')) {
-        initializeCustomizer();
-      }
-    }, 2000);
+    document.addEventListener('change', function(e){ if(e.target && e.target.name==='id'){ updateHref(); }});
+    document.addEventListener('variant:change', updateHref);
   });
 </script>
 

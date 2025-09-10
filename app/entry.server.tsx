@@ -16,31 +16,38 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // Get shop parameter from URL for dynamic CSP
+  // Compose a stable allowlist for frame ancestors (storefront + admin)
   const url = new URL(request.url);
-  const shop = url.searchParams.get('shop');
-  
-  // CRITICAL: Completely remove X-Frame-Options BEFORE Shopify adds headers
-  responseHeaders.delete("X-Frame-Options");
-  
-  // Set dynamic CSP based on shop parameter (similar to server middleware approach)
+  const shop = url.searchParams.get("shop");
+  const allowlist = [
+    "https://admin.shopify.com",
+    "https://*.myshopify.com",
+    "https://*.shopify.com",
+    "https://sarvsartsandcrafts.com",
+    "https://www.sarvsartsandcrafts.com",
+    "https://1cenkg-zs.myshopify.com",
+    "https://1cenkg-zs.account.myshopify.com",
+  ];
   if (shop) {
-    responseHeaders.set("Content-Security-Policy", `frame-ancestors https://${shop} https://admin.shopify.com https://*.myshopify.com;`);
-  } else {
-    responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
+    allowlist.push(`https://${shop}`);
   }
+
+  // Remove X-Frame-Options BEFORE Shopify adds headers
+  responseHeaders.delete("X-Frame-Options");
+  // Apply CSP with our full allowlist
+  responseHeaders.set(
+    "Content-Security-Policy",
+    `frame-ancestors ${allowlist.join(" ")};`
+  );
   
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // FORCE override after Shopify headers - completely remove X-Frame-Options
+  // After Shopify headers, re-apply our CSP and clear X-Frame-Options
   responseHeaders.delete("X-Frame-Options");
-  
-  // Re-apply dynamic CSP after Shopify headers
-  if (shop) {
-    responseHeaders.set("Content-Security-Policy", `frame-ancestors https://${shop} https://admin.shopify.com https://*.myshopify.com;`);
-  } else {
-    responseHeaders.set("Content-Security-Policy", "frame-ancestors https://admin.shopify.com https://*.myshopify.com;");
-  }
+  responseHeaders.set(
+    "Content-Security-Policy",
+    `frame-ancestors ${allowlist.join(" ")};`
+  );
   
   // Add CORS headers to prevent CORS errors
   responseHeaders.set("Access-Control-Allow-Origin", "*");

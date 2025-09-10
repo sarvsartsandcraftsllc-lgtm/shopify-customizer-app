@@ -32,7 +32,9 @@ export default function App() {
 
 export const headers: HeadersFunction = () => {
   return {
-    "Content-Security-Policy": "frame-ancestors https://admin.shopify.com https://*.myshopify.com;",
-    "X-Frame-Options": "", // Override Vercel's default DENY
+    // Allow embedding inside Shopify Admin (theme editor) and storefront domains
+    "Content-Security-Policy":
+      "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://*.shopify.com https://sarvsartsandcrafts.com https://www.sarvsartsandcrafts.com https://1cenkg-zs.myshopify.com https://1cenkg-zs.account.myshopify.com;",
+    "X-Frame-Options": "ALLOWALL", // Override Vercel's default DENY
   };
 };
