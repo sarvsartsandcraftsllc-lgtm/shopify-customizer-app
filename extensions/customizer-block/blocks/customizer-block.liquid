@@ -33,21 +33,66 @@
     const wrapper = document.querySelector('.customizer-block-wrapper');
     if(!wrapper) return;
     const iframe = document.getElementById('sf-customizer-iframe');
+
     // Build a map of variantId -> featured_image URL for quick lookups on change
     const variantImageById = {};
     {% for variant in product.variants %}
       variantImageById[{{ variant.id }}] = "{{ variant.featured_image | image_url }}";
     {% endfor %}
     const defaultImage = "{{ product.featured_image | image_url }}";
-    function updateHref(){
-      const input = document.querySelector('form[action*="/cart/add"] [name="id"], [name="id"][form]');
-      const vid = input && input.value ? input.value : wrapper.getAttribute('data-initial-variant');
+
+    // Helpers
+    function getVariantInput(){
+      return document.querySelector('form[action*="/cart/add"] [name="id"], [name="id"][form]');
+    }
+    function getCurrentVariantId(){
+      const input = getVariantInput();
+      return (input && input.value) ? input.value : wrapper.getAttribute('data-initial-variant');
+    }
+
+    let lastVid = null;
+    function updateIframeSrc(nextVid){
+      const vid = nextVid || getCurrentVariantId();
+      if(!vid) return;
+      if(vid === lastVid && iframe && iframe.src && iframe.src.includes('variant=' + vid)) return;
+      lastVid = vid;
       const title = encodeURIComponent('{{ product.title | escape }}');
       const img = encodeURIComponent(variantImageById[vid] || defaultImage);
       iframe.src = '{{ block.settings.app_url }}/customizer?productTitle=' + title + '&variant=' + vid + '&frontBg=' + img;
     }
-    document.addEventListener('change', function(e){ if(e.target && e.target.name==='id'){ updateHref(); }});
-    document.addEventListener('variant:change', updateHref);
+
+    // 1) Initial update
+    updateIframeSrc();
+
+    // 2) Standard change event on variant hidden input
+    document.addEventListener('change', function(e){
+      if(e.target && e.target.name === 'id'){ updateIframeSrc(e.target.value); }
+    });
+
+    // 3) Theme custom events used by many OS 2.0 themes
+    document.addEventListener('variant:change', function(e){
+      try { updateIframeSrc((e && e.detail && e.detail.variant && e.detail.variant.id) || getCurrentVariantId()); } catch(_) { updateIframeSrc(); }
+    });
+    document.addEventListener('product:variant-change', function(e){
+      try { updateIframeSrc((e && e.detail && e.detail.variant && e.detail.variant.id) || getCurrentVariantId()); } catch(_) { updateIframeSrc(); }
+    });
+
+    // 4) Re-bind after dynamic section reloads in Theme Editor
+    document.addEventListener('shopify:section:load', function(){ setTimeout(updateIframeSrc, 0); });
+
+    // 5) MutationObserver to detect hidden input value changes without events
+    const input = getVariantInput();
+    if(input && window.MutationObserver){
+      const mo = new MutationObserver(function(){ updateIframeSrc(); });
+      mo.observe(input, { attributes: true, attributeFilter: ['value'] });
+    }
+
+    // 6) Fallback polling (lightweight, debounced)
+    let lastPolled = getCurrentVariantId();
+    setInterval(function(){
+      const vid = getCurrentVariantId();
+      if(vid && vid !== lastPolled){ lastPolled = vid; updateIframeSrc(vid); }
+    }, 800);
   });
 </script>
 
