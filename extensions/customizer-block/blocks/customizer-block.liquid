@@ -17,12 +17,12 @@
 
 {% assign initial_variant_id = product.selected_or_first_available_variant.id %}
 
-<div class="customizer-block-wrapper"
+<div class="customizer-block-wrapper" 
      data-initial-variant="{{ initial_variant_id }}"
      style="{% if block.settings.show_border %}border:1px solid #e5e7eb;{% endif %} border-radius:8px; padding:8px;">
   {% if block.settings.title %}
     <h3 class="customizer-block-title" style="margin:8px 12px;">{{ block.settings.title }}</h3>
-  {% endif %}
+      {% endif %}
   <iframe id="sf-customizer-iframe" title="Customizer"
           src="{{ block.settings.app_url }}/customizer?variant={{ initial_variant_id }}&productTitle={{ product.title | url_encode }}&frontBg={{ product.selected_or_first_available_variant.featured_image | image_url | url_encode }}"
           style="width:100%; height: {{ block.settings.height }}px; border:0; border-radius:6px; background:#fff;"></iframe>
@@ -45,9 +45,14 @@
     function getVariantInput(){
       return document.querySelector('form[action*="/cart/add"] [name="id"], [name="id"][form]');
     }
+    function getVariantIdFromUrl(){
+      try { return new URL(location.href).searchParams.get('variant'); } catch(_) { return null; }
+    }
     function getCurrentVariantId(){
       const input = getVariantInput();
-      return (input && input.value) ? input.value : wrapper.getAttribute('data-initial-variant');
+      const fromInput = (input && input.value) ? input.value : null;
+      const fromUrl = getVariantIdFromUrl();
+      return fromInput || fromUrl || wrapper.getAttribute('data-initial-variant');
     }
 
     let lastVid = null;
@@ -58,7 +63,9 @@
       lastVid = vid;
       const title = encodeURIComponent('{{ product.title | escape }}');
       const img = encodeURIComponent(variantImageById[vid] || defaultImage);
-      iframe.src = '{{ block.settings.app_url }}/customizer?productTitle=' + title + '&variant=' + vid + '&frontBg=' + img;
+      // cache-bust to force iframe reload reliably across browsers
+      const cb = Date.now();
+      iframe.src = '{{ block.settings.app_url }}/customizer?productTitle=' + title + '&variant=' + vid + '&frontBg=' + img + '&_cb=' + cb;
     }
 
     // 1) Initial update
@@ -73,12 +80,29 @@
     document.addEventListener('variant:change', function(e){
       try { updateIframeSrc((e && e.detail && e.detail.variant && e.detail.variant.id) || getCurrentVariantId()); } catch(_) { updateIframeSrc(); }
     });
+    document.addEventListener('variant:changed', function(e){
+      try { updateIframeSrc((e && e.detail && e.detail.variant && e.detail.variant.id) || getCurrentVariantId()); } catch(_) { updateIframeSrc(); }
+    });
     document.addEventListener('product:variant-change', function(e){
       try { updateIframeSrc((e && e.detail && e.detail.variant && e.detail.variant.id) || getCurrentVariantId()); } catch(_) { updateIframeSrc(); }
     });
 
     // 4) Re-bind after dynamic section reloads in Theme Editor
     document.addEventListener('shopify:section:load', function(){ setTimeout(updateIframeSrc, 0); });
+
+    // 4b) Detect URL changes that include ?variant= via history API
+    (function(){
+      const origPush = history.pushState;
+      const origReplace = history.replaceState;
+      function onUrlChange(){ updateIframeSrc(); }
+      if(origPush){
+        history.pushState = function(){ origPush.apply(this, arguments); onUrlChange(); };
+      }
+      if(origReplace){
+        history.replaceState = function(){ origReplace.apply(this, arguments); onUrlChange(); };
+      }
+      window.addEventListener('popstate', onUrlChange);
+    })();
 
     // 5) MutationObserver to detect hidden input value changes without events
     const input = getVariantInput();
