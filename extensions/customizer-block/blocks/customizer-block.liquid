@@ -24,7 +24,7 @@
     <h3 class="customizer-block-title" style="margin:8px 12px;">{{ block.settings.title }}</h3>
       {% endif %}
   <iframe id="sf-customizer-iframe" title="Customizer"
-          src="{{ block.settings.app_url }}/customizer?variant={{ initial_variant_id }}&productTitle={{ product.title | url_encode }}&frontBg={{ product.selected_or_first_available_variant.featured_image | image_url | url_encode }}"
+          src="{{ block.settings.app_url }}/customizer?variant={{ initial_variant_id }}&productTitle={{ product.title | url_encode }}&frontBg={{ product.selected_or_first_available_variant.featured_image | img_url: 'master' | url_encode }}"
           style="width:100%; height: {{ block.settings.height }}px; border:0; border-radius:6px; background:#fff;"></iframe>
 </div>
 
@@ -37,9 +37,13 @@
     // Build a map of variantId -> featured_image URL for quick lookups on change
     const variantImageById = {};
     {% for variant in product.variants %}
-      variantImageById[{{ variant.id }}] = "{{ variant.featured_image | image_url }}";
+      {% if variant.featured_image %}
+        variantImageById[{{ variant.id }}] = "{{ variant.featured_image | img_url: 'master' }}";
+      {% else %}
+        variantImageById[{{ variant.id }}] = "{{ product.featured_image | img_url: 'master' }}";
+      {% endif %}
     {% endfor %}
-    const defaultImage = "{{ product.featured_image | image_url }}";
+    const defaultImage = "{{ product.featured_image | img_url: 'master' }}";
 
     // Helpers
     function getVariantInput(){
@@ -105,10 +109,18 @@
     })();
 
     // 5) MutationObserver to detect hidden input value changes without events
-    const input = getVariantInput();
-    if(input && window.MutationObserver){
+    function bindVariantInputObserver(){
+      const input = getVariantInput();
+      if(!input || !window.MutationObserver) return;
       const mo = new MutationObserver(function(){ updateIframeSrc(); });
       mo.observe(input, { attributes: true, attributeFilter: ['value'] });
+    }
+    bindVariantInputObserver();
+
+    // Rebind observer if theme swaps the variant input node
+    if(window.MutationObserver){
+      const rebinder = new MutationObserver(function(){ bindVariantInputObserver(); });
+      rebinder.observe(document.body, { childList: true, subtree: true });
     }
 
     // 6) Fallback polling (lightweight, debounced)

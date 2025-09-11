@@ -1,8 +1,8 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "9e5b4219d13cfad2b86f1369cd545d1a"
+client_id = "42f9473a754a136cd3a49d07470ae895"
 name = "PRNTONDEMAND"
-application_url = "https://example.com/"
+application_url = "https://prntondemand.vercel.app"
 embedded = true
 handle = "prntondemand"
 
@@ -22,10 +22,10 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products,read_orders,write_orders,read_customers,write_customers,read_themes,write_themes"
+scopes = "read_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://prntondemand.vercel.app/auth/callback", "http://localhost:3000/auth/callback" ]
 
 [pos]
 embedded = false

@@ -1,24 +1,28 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "2b9b69a3fa0f318446147ef2dfe89c91"
+client_id = "42f9473a754a136cd3a49d07470ae895"
 name = "prntondemand"
-application_url = "https://prntondemand.vercel.app"
+application_url = "https://prntondemand.vercel.app/"
 embedded = true
-handle = "prntondemand-3"
-
-[build]
-include_config_on_deploy = true
-automatically_update_urls_on_dev = false
+handle = "prntondemand-2"
 
 [webhooks]
-api_version = "2025-07"
+api_version = "2024-10"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "https://define-oasis-nights-doc.trycloudflare.com/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "https://define-oasis-nights-doc.trycloudflare.com/webhooks/app/uninstalled"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_customers,read_orders,read_products,read_themes,write_customers,write_orders,write_products,write_themes"
 
 [auth]
-redirect_urls = ["https://prntondemand.vercel.app/auth/callback"]
+redirect_urls = [ "https://prntondemand.vercel.app/api/auth/callback" ]
 
 [pos]
 embedded = false

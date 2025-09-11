@@ -16,13 +16,7 @@ const FONT_FAMILIES = [
 
 type Side = "front" | "back";
 
-interface CustomizerProps {
-  productTitle?: string;
-  initialBackgroundFront?: string;
-  initialBackgroundBack?: string;
-}
-
-const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackgroundFront, initialBackgroundBack }) => {
+const Customizer: React.FC<{ productTitle?: string }> = ({ productTitle }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
 
@@ -81,8 +75,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
     (fabricCanvas: fabric.Canvas, side: Side): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
-          const provided = side === "front" ? initialBackgroundFront : initialBackgroundBack;
-          const path = provided || (side === "front" ? "/Front White Tshirt.png" : "/Back White Tshirt.png");
+          const path = side === "front" ? "/Front White Tshirt.png" : "/Back White Tshirt.png";
 
           // remove existing background if present
           const existing = fabricCanvas.getObjects().find((o) => (o as any).name === "tshirt-background");
@@ -91,21 +84,15 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
           }
 
           const img = new Image();
-          // Only use crossOrigin when safe (same-origin, data URLs, or Shopify CDN which allows CORS)
-          const lower = String(path).toLowerCase();
-          const isSameOrigin = lower.startsWith("/") || lower.startsWith("data:");
-          const isCorsSafeCdn = lower.includes("cdn.shopify.com") || lower.includes("cdn.shopifycdn.net") || lower.includes("cdn.shopifycloud.com");
-          if (isSameOrigin || isCorsSafeCdn) {
-            img.crossOrigin = "anonymous";
-          }
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             const fabricImg = new fabric.Image(img, {
-          left: CANVAS_WIDTH / 2,
-          top: CANVAS_HEIGHT / 2,
+              left: CANVAS_WIDTH / 2,
+              top: CANVAS_HEIGHT / 2,
               originX: "center",
               originY: "center",
-          selectable: false,
-          evented: false,
+              selectable: false,
+              evented: false,
               name: "tshirt-background",
             });
 
@@ -126,7 +113,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
         }
       });
     },
-    [initialBackgroundFront, initialBackgroundBack]
+    []
   );
 
   // -----------------
@@ -315,8 +302,8 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
       cornerSize: 10,
       cornerStyle: "circle",
       transparentCorners: false,
-          selectable: true,
-          evented: true,
+      selectable: true,
+      evented: true,
       name: "crop-overlay",
     });
 
@@ -334,7 +321,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
     canvas.setActiveObject(rect);
     setCropOverlay(rect);
     setCropMode(true);
-        canvas.renderAll();
+    canvas.renderAll();
   };
 
   const applyCrop = () => {
@@ -535,9 +522,9 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
               Toggle View ({currentView})
             </button>
             <div className="text-sm text-gray-600">Editing: <strong>{currentView.toUpperCase()}</strong></div>
-      </div>
+          </div>
           <canvas ref={(el) => (canvasRef.current = el)} className="border rounded bg-white" />
-      </div>
+        </div>
 
         {/* Controls */}
         <div className="w-80 space-y-3">
@@ -555,12 +542,12 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
               <div className="text-3xl">📁</div>
               <div className="font-semibold text-gray-700">
                 {isDragActive ? "Drop your image here" : `Upload Image (${currentView})`}
-        </div>
+              </div>
               <div className="text-sm text-gray-500">
                 Drag & drop or click to browse
+              </div>
+            </div>
           </div>
-          </div>
-        </div>
 
           {/* Add Text */}
           <button
@@ -625,7 +612,7 @@ const Customizer: React.FC<CustomizerProps> = ({ productTitle, initialBackground
               >
                 ✂️ Start Crop
               </button>
-          </div>
+            </div>
           )}
 
           {/* Crop Controls */}

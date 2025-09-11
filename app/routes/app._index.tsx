@@ -7,30 +7,53 @@ import Customizer from '../components/Customizer';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    await authenticate.admin(request);
+    const auth = await authenticate.admin(request);
 
-    // Return basic product data for the customizer
+    const url = new URL(request.url);
+    const variantParam = url.searchParams.get('variant') || url.searchParams.get('variantId') || undefined;
+    const frontBgParam = url.searchParams.get('frontBg') || undefined;
+    const backBgParam = url.searchParams.get('backBg') || undefined;
+
+    let initialBackgroundFront: string | undefined = frontBgParam;
+    let initialBackgroundBack: string | undefined = backBgParam;
+
+    // If no explicit backgrounds provided but variant ID is given, try resolving variant image via Admin API
+    if (!initialBackgroundFront && variantParam && auth?.admin) {
+      try {
+        const gid = `gid://shopify/ProductVariant/${variantParam}`;
+        const query = `#graphql\nquery VariantImage($id: ID!) { productVariant(id: $id) { image { url } } }`;
+        const res = await auth.admin.graphql(query, { variables: { id: gid } });
+        const data = await res.json();
+        const urlFromVariant: string | undefined = data?.data?.productVariant?.image?.url;
+        if (urlFromVariant) {
+          initialBackgroundFront = urlFromVariant;
+        }
+      } catch (err) {
+        console.error('Variant image fetch failed:', err);
+      }
+    }
+
     return json({
       productId: 'custom-t-shirt',
-      variantId: 'variant-1',
-      productTitle: 'Custom T-Shirt'
+      variantId: variantParam ?? 'variant-1',
+      productTitle: 'Custom T-Shirt',
+      initialBackgroundFront,
+      initialBackgroundBack,
     });
   } catch (error) {
     console.error('Loader error:', error);
-    // Return basic data even if authentication fails
     return json({
       productId: 'custom-t-shirt',
       variantId: 'variant-1',
-      productTitle: 'Custom T-Shirt'
+      productTitle: 'Custom T-Shirt',
     });
   }
 };
 
 export default function Index() {
-  // Force cache refresh
-  const { productId, variantId, productTitle } = useLoaderData<typeof loader>();
+  const { productId, variantId, productTitle, initialBackgroundFront, initialBackgroundBack } = useLoaderData<typeof loader>();
 
-  console.log('App Index component rendering with data:', { productId, variantId, productTitle });
+  console.log('App Index component rendering with data:', { productId, variantId, productTitle, initialBackgroundFront, initialBackgroundBack });
 
   return (
     <Page>
@@ -59,6 +82,8 @@ export default function Index() {
               productId={productId}
               variantId={variantId}
               productTitle={productTitle}
+              initialBackgroundFront={initialBackgroundFront}
+              initialBackgroundBack={initialBackgroundBack}
             />
           </Card>
         </Layout.Section>
