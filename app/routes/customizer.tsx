@@ -8,8 +8,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const variant = url.searchParams.get("variant") || undefined;
   const productTitle = url.searchParams.get("productTitle") || undefined;
-  const frontBg = url.searchParams.get("frontBg") || undefined;
-  const backBg = url.searchParams.get("backBg") || undefined;
+  const rawFront = url.searchParams.get("frontBg") || undefined;
+  const rawBack = url.searchParams.get("backBg") || undefined;
+
+  const normalize = (src?: string | null) => {
+    if (!src) return undefined;
+    const trimmed = src.replace(/^['"]|['"]$/g, "");
+    if (trimmed.startsWith("//")) return `https:${trimmed}`;
+    return trimmed;
+  };
+
+  const frontBg = normalize(rawFront);
+  const backBg = normalize(rawBack);
   return json({ variant, productTitle, frontBg, backBg });
 };
 
@@ -30,5 +40,6 @@ export default function StorefrontCustomizer() {
     </div>
   );
 }
+
 
 
